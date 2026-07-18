@@ -46,7 +46,8 @@ All operations use FFT‑based convolution and are optimised for **double** prec
 
 ## Accuracy
 
-All tests pass on **GCC 11+** with `-O3 -march=native -mfma`.  
+All tests pass on **GCC 11+** (test environment) and any **C++98 conformant compiler**
+including older GCC (3.4+), Clang, and MSVC (2005+).  
 Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (truncated to 8 terms):
 
 | Identity                  | Error       |
@@ -71,44 +72,101 @@ version offers ~2.1e‑10 accuracy.
 
 ## Compilation
 
-```bash
-g++ -O3 -march=native -mfma -std=c++98 your_program.cpp -o your_program
-```
+    g++ -O3 -march=native -mfma -std=c++98 your_program.cpp -o your_program
 
 If your CPU doesn’t support FMA, drop `-mfma` – the library falls back to add/sub
 SIMD intrinsics automatically.
 
-## Quick example
+### Precompiled header (optional)
 
-```cpp
-#include "poly_avx.hpp"
-#include <iostream>
-using namespace poly_avx;
+You can speed up compilation of projects that include `poly_avx.hpp` by generating a
+**precompiled header** (`.gch`). Use the **exact same compiler options** as when
+building your program:
 
-int main() {
-    // Create polynomial 2 + 3x + x²
-    PolyD A;
-    A.data.push_back(2.0);
-    A.data.push_back(3.0);
-    A.data.push_back(1.0);
+    g++ -O3 -march=native -mfma -std=c++98 poly_avx.hpp -o poly_avx.hpp.gch
 
-    // Derivative, integral, log, exp
-    std::cout << "A' = " << A.deriv() << "\n";
-    std::cout << "∫A = " << A.integ() << "\n";
-    std::cout << "log(A) = " << A.log(8) << "\n";
-    std::cout << "exp(A) = " << A.exp(8) << "\n";
+Place the resulting `poly_avx.hpp.gch` in the same directory as `poly_avx.hpp`.
+GCC will automatically use it if the compile flags match.  
+**Note:** Do **not** commit the `.gch` file to version control – it is compiler‑specific
+and can be regenerated on demand. Add `*.gch` to your `.gitignore`.
 
-    // Trigonometric functions (use A0 = A - A[0] for zero constant term)
-    PolyD A0 = A - PolyD(A[0]);
-    std::cout << "sin(A0) = " << poly_sin(A0, 8) << "\n";
+## Complete example
 
-    // Composition
-    PolyD B; B.data.push_back(0.0); B.data.push_back(1.0); // B = x
-    std::cout << "A(B(x)) = " << poly_composite(A, B, 5) << "\n";
+    #include "poly_avx.hpp"
+    #include <iostream>
+    #include <vector>
+    using namespace poly_avx;
 
-    return 0;
-}
-```
+    int main() {
+        // ---- Build polynomials ----
+        // A = 2 + 3x + x²
+        PolyD A;
+        A.data.push_back(2.0);
+        A.data.push_back(3.0);
+        A.data.push_back(1.0);
+
+        // B = 1 + x
+        PolyD B;
+        B.data.push_back(1.0);
+        B.data.push_back(1.0);
+
+        // A0 = A - 2 (constant term becomes 0 for trig/hyperbolic input)
+        PolyD A0 = A - PolyD(2.0);
+
+        std::cout.precision(6);
+        std::cout << "A = " << A << "\n";
+        std::cout << "B = " << B << "\n\n";
+
+        // ---- Basic algebra ----
+        std::cout << "A + B = " << (A + B) << "\n";
+        std::cout << "A * B = " << (A * B) << "\n";
+        std::cout << "A / B = " << (A / B) << "   (quotient)\n";
+        std::cout << "A % B = " << (A % B) << "   (remainder)\n\n";
+
+        // ---- Calculus ----
+        std::cout << "A' = " << A.deriv() << "\n";
+        std::cout << "∫A = " << A.integ() << "\n\n";
+
+        // ---- Formal power series (8 terms) ----
+        int N = 8;
+        std::cout << "log(A) = " << A.log(N) << "\n";
+        std::cout << "exp(A) = " << A.exp(N) << "\n";
+        std::cout << "sqrt(A) = " << A.sqrt(N) << "\n";
+        std::cout << "1/A = " << A.inv(N) << "\n";
+        std::cout << "A^0.5 = " << A.pow(0.5, N) << "\n\n";
+
+        // ---- Trigonometric functions ----
+        std::cout << "sin(A0) = " << poly_sin(A0, N) << "\n";
+        std::cout << "cos(A0) = " << poly_cos(A0, N) << "\n";
+        std::cout << "asin(A0) = " << poly_asin(A0, N) << "\n";
+        std::cout << "atan(A0) = " << poly_atan(A0, N) << "\n\n";
+
+        // ---- Hyperbolic functions ----
+        std::cout << "sinh(A0) = " << poly_sinh(A0, N) << "\n";
+        std::cout << "cosh(A0) = " << poly_cosh(A0, N) << "\n";
+        std::cout << "asinh(A0) = " << poly_asinh(A0, N) << "\n";
+        std::cout << "atanh(A0) = " << poly_atanh(A0, N) << "\n\n";
+
+        // ---- Extended operations ----
+        // Taylor shift: A(x+2)
+        std::cout << "A(x+2) = " << poly_shift(A, 2.0, 5) << "\n";
+
+        // Composition A(B(x))
+        std::cout << "A(B(x)) = " << poly_composite(A, B, 5) << "\n";
+
+        // Interpolation example
+        std::vector<double> xs, ys;
+        xs.push_back(0.0); xs.push_back(1.0); xs.push_back(2.0);
+        ys.push_back(1.0); ys.push_back(3.0); ys.push_back(7.0);
+        PolyD interp = multipoint_interpolate(xs, ys);
+        std::cout << "interpolated (points (0,1),(1,3),(2,7)) = " << interp << "\n";
+
+        // Special functions
+        std::cout << "erf(A0) = " << poly_erf(A0, 6) << "\n";
+        std::cout << "Bessel J0 = " << poly_bessel_J0(6) << "\n";
+
+        return 0;
+    }
 
 ## Acknowledgements
 
@@ -117,12 +175,35 @@ and **DeepSeek AI**. The AI provided initial code drafts, algorithms explanation
 and debugging assistance; the author performed rigorous testing, optimisation,
 and finalisation of every feature.
 
+**Special thanks** to ExplodingKonjac for the original 
+libcp library,
+which inspired this project. PolyAVX extends the concept with AVX-512 support,
+additional functions, and a self-contained C++98 single-header implementation.
+
+## Contributing
+
+Contributions are warmly welcomed! If you're interested in pushing PolyAVX
+even closer to the metal, here are some concrete directions:
+
+- **C API** (`extern "C"` wrappers around core functions) – enables linking from
+  C, Python, Rust, etc.
+- **Hand‑tuned assembly / intrinsics** for FFT butterflies or complex multiply
+  (especially for Zen 4, Golden Cove, or future x86‑64 u‑archs).
+- **Non‑STL memory backend** – replace `std::vector` with a custom allocator so
+  the library can be used in kernel / embedded contexts.
+- **Runtime CPU dispatch** – detect AVX‑512 / FMA at runtime and select the best
+  implementation without recompiling.
+- **Benchmarks and CI** – a reproducible benchmark suite that tracks performance
+  improvements.
+
+If you plan to work on these, please open an issue first so we can discuss the
+best approach. The main logic resides in `poly_avx.hpp`; functions like
+`pointwise_mul`, `fft`, `convolution`, and `Poly::log` / `Poly::exp` are the
+most performance‑critical.
+
 ## License
 
 This project is licensed under the **GNU Lesser General Public License v3.0 (LGPLv3)**.
 See the [LICENSE](LICENSE) file for the full text.
 
----
-
 © 2026 yuzheng2026. Licensed under LGPLv3.
-```
