@@ -125,5 +125,5 @@ See the [LICENSE](LICENSE) file for the full text.
 
 ---
 
-© 2026 [Your Name or Username]. Licensed under LGPLv3.
+© 2026 [yuzheng2026]. Licensed under LGPLv3.
 ```
