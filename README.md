@@ -179,6 +179,7 @@ and finalisation of every feature.
 libcp library,
 which inspired this project. PolyAVX extends the concept with AVX-512 support,
 additional functions, and a self-contained C++98 single-header implementation.
+The original library is licensed under GPLv3. PolyAVX is an independent re‑implementation inspired by it, licensed under LGPLv3 for greater compatibility.
 
 ## Contributing
 
