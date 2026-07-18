@@ -125,5 +125,7 @@ See the [LICENSE](LICENSE) file for the full text.
 
 ---
 
-© 2026 [yuzheng2026]. Licensed under LGPLv3.
+© 2026 yuzheng2026. Licensed under LGPLv3.
 ```
+
+现在您可以将此内容保存为 `README.md`，连同 `LICENSE` 文件和 `poly_avx.hpp` 一起上传到 GitHub 公开仓库。一切就绪！
