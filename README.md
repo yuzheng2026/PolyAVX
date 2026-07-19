@@ -203,8 +203,8 @@ best approach. The main logic resides in `poly_avx.hpp`; functions like
 most performance‑critical.
 
 ## License
-
-This project is licensed under the **GNU Lesser General Public License v3.0 (LGPLv3)**.
+This project is licensed under the **GNU Lesser General Public License v3.0 (LGPLv3)**
+or (at your option) any later version.
 See the [LICENSE](LICENSE) file for the full text.
 
 © 2026 yuzheng2026. Licensed under LGPLv3.
