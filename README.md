@@ -1,5 +1,13 @@
 # PolyAVX – High‑Performance Polynomial Family Bucket (C++98)
 
+[![License: LGPL v3+](https://img.shields.io/badge/License-LGPL%20v3%2B-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![GitHub release](https://img.shields.io/github/v/release/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/releases)
+[![GitHub issues](https://img.shields.io/github/issues/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/pulls)
+[![Last commit](https://img.shields.io/github/last-commit/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/commits/main)
+[![Top language](https://img.shields.io/github/languages/top/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
+[![Repo size](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
+
 A single‑header, high‑speed polynomial / formal power series library for **x86‑64** with
 **SSE3 / AVX / AVX‑512** and **FMA3** acceleration.
 All operations use FFT‑based convolution and are optimised for **double** precision.
@@ -90,80 +98,32 @@ GCC will automatically use it if the compile flags match.
 **Note:** Do **not** commit the `.gch` file to version control – it is compiler‑specific
 and can be regenerated on demand. Add `*.gch` to your `.gitignore`.
 
-## Complete example
+## Quick example
 
     #include "poly_avx.hpp"
     #include <iostream>
-    #include <vector>
     using namespace poly_avx;
 
     int main() {
-        // ---- Build polynomials ----
-        // A = 2 + 3x + x²
+        // Create polynomial 2 + 3x + x²
         PolyD A;
         A.data.push_back(2.0);
         A.data.push_back(3.0);
         A.data.push_back(1.0);
 
-        // B = 1 + x
-        PolyD B;
-        B.data.push_back(1.0);
-        B.data.push_back(1.0);
-
-        // A0 = A - 2 (constant term becomes 0 for trig/hyperbolic input)
-        PolyD A0 = A - PolyD(2.0);
-
-        std::cout.precision(6);
-        std::cout << "A = " << A << "\n";
-        std::cout << "B = " << B << "\n\n";
-
-        // ---- Basic algebra ----
-        std::cout << "A + B = " << (A + B) << "\n";
-        std::cout << "A * B = " << (A * B) << "\n";
-        std::cout << "A / B = " << (A / B) << "   (quotient)\n";
-        std::cout << "A % B = " << (A % B) << "   (remainder)\n\n";
-
-        // ---- Calculus ----
+        // Derivative, integral, log, exp
         std::cout << "A' = " << A.deriv() << "\n";
-        std::cout << "∫A = " << A.integ() << "\n\n";
+        std::cout << "∫A = " << A.integ() << "\n";
+        std::cout << "log(A) = " << A.log(8) << "\n";
+        std::cout << "exp(A) = " << A.exp(8) << "\n";
 
-        // ---- Formal power series (8 terms) ----
-        int N = 8;
-        std::cout << "log(A) = " << A.log(N) << "\n";
-        std::cout << "exp(A) = " << A.exp(N) << "\n";
-        std::cout << "sqrt(A) = " << A.sqrt(N) << "\n";
-        std::cout << "1/A = " << A.inv(N) << "\n";
-        std::cout << "A^0.5 = " << A.pow(0.5, N) << "\n\n";
+        // Trigonometric functions (use A0 = A - A[0] for zero constant term)
+        PolyD A0 = A - PolyD(A[0]);
+        std::cout << "sin(A0) = " << poly_sin(A0, 8) << "\n";
 
-        // ---- Trigonometric functions ----
-        std::cout << "sin(A0) = " << poly_sin(A0, N) << "\n";
-        std::cout << "cos(A0) = " << poly_cos(A0, N) << "\n";
-        std::cout << "asin(A0) = " << poly_asin(A0, N) << "\n";
-        std::cout << "atan(A0) = " << poly_atan(A0, N) << "\n\n";
-
-        // ---- Hyperbolic functions ----
-        std::cout << "sinh(A0) = " << poly_sinh(A0, N) << "\n";
-        std::cout << "cosh(A0) = " << poly_cosh(A0, N) << "\n";
-        std::cout << "asinh(A0) = " << poly_asinh(A0, N) << "\n";
-        std::cout << "atanh(A0) = " << poly_atanh(A0, N) << "\n\n";
-
-        // ---- Extended operations ----
-        // Taylor shift: A(x+2)
-        std::cout << "A(x+2) = " << poly_shift(A, 2.0, 5) << "\n";
-
-        // Composition A(B(x))
+        // Composition
+        PolyD B; B.data.push_back(0.0); B.data.push_back(1.0); // B = x
         std::cout << "A(B(x)) = " << poly_composite(A, B, 5) << "\n";
-
-        // Interpolation example
-        std::vector<double> xs, ys;
-        xs.push_back(0.0); xs.push_back(1.0); xs.push_back(2.0);
-        ys.push_back(1.0); ys.push_back(3.0); ys.push_back(7.0);
-        PolyD interp = multipoint_interpolate(xs, ys);
-        std::cout << "interpolated (points (0,1),(1,3),(2,7)) = " << interp << "\n";
-
-        // Special functions
-        std::cout << "erf(A0) = " << poly_erf(A0, 6) << "\n";
-        std::cout << "Bessel J0 = " << poly_bessel_J0(6) << "\n";
 
         return 0;
     }
@@ -175,11 +135,11 @@ and **DeepSeek AI**. The AI provided initial code drafts, algorithms explanation
 and debugging assistance; the author performed rigorous testing, optimisation,
 and finalisation of every feature.
 
-**Special thanks** to ExplodingKonjac for the original 
-libcp library,
+**Special thanks** to [原作者的姓名或用户名] for the original [原库名] library,
 which inspired this project. PolyAVX extends the concept with AVX-512 support,
 additional functions, and a self-contained C++98 single-header implementation.
-The original library is licensed under GPLv3. PolyAVX is an independent re‑implementation inspired by it, licensed under LGPLv3 for greater compatibility.
+The original library is licensed under GPLv3. PolyAVX is an independent
+re‑implementation inspired by it, licensed under LGPLv3 for greater compatibility.
 
 ## Contributing
 
@@ -203,6 +163,7 @@ best approach. The main logic resides in `poly_avx.hpp`; functions like
 most performance‑critical.
 
 ## License
+
 This project is licensed under the **GNU Lesser General Public License v3.0 (LGPLv3)**
 or (at your option) any later version.
 See the [LICENSE](LICENSE) file for the full text.
