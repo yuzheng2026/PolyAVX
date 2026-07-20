@@ -1,6 +1,6 @@
 # PolyAVX – High‑Performance Polynomial Family Bucket (C++98)
 
-[![License: LGPL v3+](https://img.shields.io/badge/License-LGPL%20v3%2B-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![License: GPL v3+](https://img.shields.io/badge/License-GPL%20v3%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![GitHub release](https://img.shields.io/github/v/release/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/releases)
 [![GitHub issues](https://img.shields.io/github/issues/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/issues)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/pulls)
@@ -138,8 +138,6 @@ and finalisation of every feature.
 **Special thanks** to [原作者的姓名或用户名] for the original [原库名] library,
 which inspired this project. PolyAVX extends the concept with AVX-512 support,
 additional functions, and a self-contained C++98 single-header implementation.
-The original library is licensed under GPLv3. PolyAVX is an independent
-re‑implementation inspired by it, licensed under LGPLv3 for greater compatibility.
 
 ## Contributing
 
@@ -164,7 +162,7 @@ most performance‑critical.
 
 ## License
 
-This project is licensed under the **GNU Lesser General Public License v3.0 (LGPLv3)**
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**
 or (at your option) any later version.
 See the [LICENSE](LICENSE) file for the full text.
 
