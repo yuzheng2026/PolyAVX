@@ -1,0 +1,9 @@
+*.gch
+*.o
+*.obj
+*.exe
+*.out
+build/
+.vs/
+*.user
+*.suo
