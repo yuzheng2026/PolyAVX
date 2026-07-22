@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+        fma: [ON, OFF]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y g++ clang
+    - name: Build and run test
+      run: |
+        FMA_FLAG=""
+        if [ "${{ matrix.fma }}" = "ON" ]; then
+          FMA_FLAG="-mfma"
+        fi
+        ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 test_full.cpp -o test_full
+        ./test_full
