@@ -48,7 +48,22 @@ namespace poly_avx {
 		while (r < n) r <<= 1;
 		return r;
 	}
-	
+
+// ============================================================
+// 内存布局假设:
+// std::complex<double> 在主流 x86-64 编译器上等同于 double[2],
+// 且与 __m128d / __m256d / __m512d 对齐兼容。
+// 如果未来编译器改变这一布局，需要调整 pointwise_mul 中的
+// reinterpret_cast 或改用更安全的加载方式。
+//
+// 此处通过检查 sizeof 来提供有限的编译期保障。
+// 如果 sizeof(std::complex<double>) != 16, 编译器会报错。
+// ============================================================
+namespace {
+    // C++98 兼容的编译期断言 (0 长度数组)
+    typedef int assert_complex_size[ sizeof(std::complex<double>) == 16 ? 1 : -1 ];
+}
+
 // ---------- FMA3 复数逐点乘法 ----------
 	inline void pointwise_mul(cd* A, const cd* B, int len) {
 #if defined(__AVX512F__)
