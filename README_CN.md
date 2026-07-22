@@ -7,6 +7,7 @@
 [![最后提交](https://img.shields.io/github/last-commit/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/commits/main)
 [![主要语言](https://img.shields.io/github/languages/top/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![仓库大小](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
+[![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
 
 一个用于 **x86‑64** 平台的高性能多项式/形式幂级数单头文件库，全面支持 **SSE3 / AVX / AVX‑512** 和 **FMA3** 指令集加速。  
 所有运算均采用基于 FFT 的卷积，并针对 **双精度浮点** 进行深度优化。
