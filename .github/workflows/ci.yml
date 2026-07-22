@@ -23,5 +23,5 @@ jobs:
         if [ "${{ matrix.fma }}" = "ON" ]; then
           FMA_FLAG="-mfma"
         fi
-        ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 test_full.cpp -o test_full
+        ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 validate.cpp -o validate
         ./test_full
