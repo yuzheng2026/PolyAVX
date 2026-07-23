@@ -24,3 +24,4 @@ jobs:
           FMA_FLAG="-mfma"
         fi
         ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
+        ./validate
