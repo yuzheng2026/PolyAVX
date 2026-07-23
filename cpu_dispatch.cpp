@@ -1,22 +1,15 @@
 // cpu_dispatch.cpp
-#include "cpu_dispatch.h"
+#include "poly_avx.hpp"
 #include <emmintrin.h>
 #include <pmmintrin.h>
 #ifdef __AVX__
-#include <immintrin.h>
-#endif
-
-// 跨平台 CPUID
-#if defined(_MSC_VER)
-#include <intrin.h>
-#else
-#include <cpuid.h>
+  #include <immintrin.h>
 #endif
 
 namespace poly_avx {
 
 // ==================== SSE3 版本 ====================
-void pointwise_mul_sse3(cd* A, const cd* B, int len) {
+static void pointwise_mul_sse3(cd* A, const cd* B, int len) {
     for (int i = 0; i < len; ++i) {
         __m128d a = _mm_loadu_pd((double*)&A[i]);
         __m128d b = _mm_loadu_pd((double*)&B[i]);
@@ -41,7 +34,7 @@ void pointwise_mul_sse3(cd* A, const cd* B, int len) {
 
 // ==================== AVX 版本 ====================
 #ifdef __AVX__
-void pointwise_mul_avx(cd* A, const cd* B, int len) {
+static void pointwise_mul_avx(cd* A, const cd* B, int len) {
     for (int i = 0; i <= len - 2; i += 2) {
         __m256d a = _mm256_loadu_pd((double*)&A[i]);
         __m256d b = _mm256_loadu_pd((double*)&B[i]);
@@ -62,15 +55,17 @@ void pointwise_mul_avx(cd* A, const cd* B, int len) {
 #endif
         _mm256_storeu_pd((double*)&A[i], res);
     }
-    for (int i = len & ~1; i < len; ++i) pointwise_mul_sse3(A + i, B + i, 1);
+    for (int i = len & ~1; i < len; ++i) {
+        pointwise_mul_sse3(A + i, B + i, 1);
+    }
 }
 #else
-void pointwise_mul_avx(cd*, const cd*, int) { /* 未编译 */ }
+static void pointwise_mul_avx(cd*, const cd*, int) { /* 未编译 */ }
 #endif
 
 // ==================== AVX-512 版本 ====================
 #ifdef __AVX512F__
-void pointwise_mul_avx512(cd* A, const cd* B, int len) {
+static void pointwise_mul_avx512(cd* A, const cd* B, int len) {
     for (int i = 0; i <= len - 4; i += 4) {
         __m512d a = _mm512_loadu_pd((double*)&A[i]);
         __m512d b = _mm512_loadu_pd((double*)&B[i]);
@@ -91,44 +86,37 @@ void pointwise_mul_avx512(cd* A, const cd* B, int len) {
 #endif
         _mm512_storeu_pd((double*)&A[i], res);
     }
-    for (int i = len & ~3; i < len; ++i) pointwise_mul_sse3(A + i, B + i, 1);
+    for (int i = len & ~3; i < len; ++i) {
+        pointwise_mul_sse3(A + i, B + i, 1);
+    }
 }
 #else
-void pointwise_mul_avx512(cd*, const cd*, int) { /* 未编译 */ }
+static void pointwise_mul_avx512(cd*, const cd*, int) { /* 未编译 */ }
 #endif
 
-// ==================== CPU 检测与调度 ====================
-pointwise_mul_func g_pointwise_mul = pointwise_mul_sse3;
-
-#if defined(_MSC_VER)
-#define CPUID(info, func) __cpuid(info, func)
-#else
-#define CPUID(info, func) __get_cpuid(func, &info[0], &info[1], &info[2], &info[3])
-#endif
+// ==================== 运行时调度 ====================
+pointwise_mul_func pointwise_mul = pointwise_mul_sse3;
 
 void init_cpu_dispatch() {
-    int info[4];
-    // 检测 AVX-512
+    // 优先 AVX-512
 #ifdef __AVX512F__
-    CPUID(info, 7);
-    if (info[1] & (1 << 16)) {  // AVX-512F 位
-        g_pointwise_mul = pointwise_mul_avx512;
+    if (__builtin_cpu_supports("avx512f")) {
+        pointwise_mul = pointwise_mul_avx512;
         return;
     }
 #endif
-    // 检测 AVX
+    // 其次 AVX
 #ifdef __AVX__
-    CPUID(info, 1);
-    if (info[2] & (1 << 28)) {  // AVX 位
-        g_pointwise_mul = pointwise_mul_avx;
+    if (__builtin_cpu_supports("avx")) {
+        pointwise_mul = pointwise_mul_avx;
         return;
     }
 #endif
     // 默认 SSE3
-    g_pointwise_mul = pointwise_mul_sse3;
+    pointwise_mul = pointwise_mul_sse3;
 }
 
-// 自动初始化对象，在 main 之前执行
+// 自动初始化对象
 namespace {
     struct AutoInit {
         AutoInit() { init_cpu_dispatch(); }
