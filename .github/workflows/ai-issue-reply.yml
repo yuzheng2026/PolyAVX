@@ -1,0 +1,47 @@
+name: AI Issue Reply (Qwen)
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  ai-reply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Qwen API
+        id: ai
+        run: |
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ISSUE_BODY="${{ github.event.issue.body }}"
+          
+          PROMPT="你是一个开源C++多项式库的维护者助手。请用中文友好地回复以下Issue：\n\n标题：${ISSUE_TITLE}\n\n内容：${ISSUE_BODY}"
+          
+          RESPONSE=$(curl -s "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.QWEN_API_KEY }}" \
+            -d "{
+              \"model\": \"qwen-turbo\",
+              \"input\": {
+                \"messages\": [
+                  {\"role\": \"user\", \"content\": $(echo "$PROMPT" | jq -Rs .)}
+                ]
+              },
+              \"parameters\": {
+                \"result_format\": \"message\"
+              }
+            }")
+          
+          REPLY=$(echo "$RESPONSE" | jq -r '.output.choices[0].message.content // "抱歉，我暂时无法生成回复。"')
+          echo "reply=$REPLY" >> $GITHUB_OUTPUT
+      
+      - name: Post reply
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reply = `${{ steps.ai.outputs.reply }}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: reply
+            });
