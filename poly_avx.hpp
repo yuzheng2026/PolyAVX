@@ -403,12 +403,14 @@ inline PolyD poly_asin(const PolyD& A, int n) {
     PolyD sqrt_term = (one - (Acopy * Acopy).trunc(n)).sqrt(n);
     return (DA * sqrt_term.inv(n)).trunc(n - 1).integ().trunc(n);
 }
-	inline PolyD poly_acos(const PolyD& A, int n) {
-		assert(A.data.empty() || std::abs(A[0]) < EPS);
-		PolyD asinA = poly_asin(A, n);
-		asinA[0] = PI / 2.0 - asinA[0];
-		return asinA;
-	}
+
+inline PolyD poly_acos(const PolyD& A, int n) {
+    assert(A.data.empty() || std::abs(A[0]) < EPS);
+    PolyD asinA = poly_asin(A, n);
+    asinA.data[0] = PI / 2.0 - asinA.data[0];
+    return asinA;
+}
+
 inline PolyD poly_atan(const PolyD& A, int n) {
     PolyD Acopy = A;
     if (!Acopy.data.empty() && std::abs(Acopy.data[0]) < 1e-8) {
@@ -420,12 +422,8 @@ inline PolyD poly_atan(const PolyD& A, int n) {
     PolyD den = one + (Acopy * Acopy).trunc(n);
     return (DA * den.inv(n)).trunc(n - 1).integ().trunc(n);
 }
-    assert(A.data.empty() || std::abs(A[0]) < EPS);
-    PolyD DA = A.deriv();
-    PolyD one(1.0);
-    PolyD den = one + (A * A).trunc(n);
-    return (DA * den.inv(n)).trunc(n - 1).integ().trunc(n);
-}
+
+// ---------- 双曲函数（带归一化） ----------
 	
 // ---------- 双曲函数（带归一化） ----------
 	inline void poly_sinhcosh(const PolyD& A, int n, PolyD& sinhA, PolyD& coshA) {
