@@ -171,7 +171,21 @@ int main() {
     return 0;
 }
 ```
+## Benchmark
 
+A self‑contained benchmark suite (`bench_basic.cpp`) measures the throughput of all
+core operations. It executes each function several thousand times and reports the
+total wall‑clock time, making it easy to track performance changes across commits.
+
+To build and run the benchmark:
+
+```bash
+g++ -O3 -march=native -mfma -std=c++98 bench_basic.cpp cpu_dispatch.cpp -o bench_basic
+./bench_basic
+```
+The output lists 33 operations (algebra, calculus, power series, trigonometric,
+hyperbolic, and extended functions) with per‑function timings. The CI pipeline
+automatically runs this benchmark on every push and pull request.
 ## Acknowledgements
 
 This library was created through an extensive collaboration between the author
