@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y g++ clang
-    - name: Build and run test
+    - name: Build and run validation test
       run: |
         FMA_FLAG=""
         if [ "${{ matrix.fma }}" = "ON" ]; then
@@ -25,3 +25,11 @@ jobs:
         fi
         ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
         ./validate
+    - name: Build and run benchmark
+      run: |
+        FMA_FLAG=""
+        if [ "${{ matrix.fma }}" = "ON" ]; then
+          FMA_FLAG="-mfma"
+        fi
+        ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 bench_basic.cpp cpu_dispatch.cpp -o bench_basic
+        ./bench_basic
