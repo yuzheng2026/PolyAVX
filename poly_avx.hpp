@@ -392,26 +392,36 @@ namespace poly_avx {
 	}
 	
 // ---------- 反三角函数 ----------
-	inline PolyD poly_asin(const PolyD& A, int n) {
-		assert(A.data.empty() || std::abs(A[0]) < EPS);
-		PolyD DA = A.deriv();
-		PolyD one(1.0);
-		PolyD sqrt_term = (one - (A * A).trunc(n)).sqrt(n);
-		return (DA * sqrt_term.inv(n)).trunc(n - 1).integ().trunc(n);
-	}
+inline PolyD poly_asin(const PolyD& A, int n) {
+    if (!A.data.empty() && std::abs(A[0]) < 1e-8) {
+        PolyD Acopy = A;
+        Acopy.data[0] = 0.0;
+        return poly_asin(Acopy, n);
+    }
+    assert(A.data.empty() || std::abs(A[0]) < EPS);
+    PolyD DA = A.deriv();
+    PolyD one(1.0);
+    PolyD sqrt_term = (one - (A * A).trunc(n)).sqrt(n);
+    return (DA * sqrt_term.inv(n)).trunc(n - 1).integ().trunc(n);
+}
 	inline PolyD poly_acos(const PolyD& A, int n) {
 		assert(A.data.empty() || std::abs(A[0]) < EPS);
 		PolyD asinA = poly_asin(A, n);
 		asinA[0] = PI / 2.0 - asinA[0];
 		return asinA;
 	}
-	inline PolyD poly_atan(const PolyD& A, int n) {
-		assert(A.data.empty() || std::abs(A[0]) < EPS);
-		PolyD DA = A.deriv();
-		PolyD one(1.0);
-		PolyD den = one + (A * A).trunc(n);
-		return (DA * den.inv(n)).trunc(n - 1).integ().trunc(n);
-	}
+inline PolyD poly_atan(const PolyD& A, int n) {
+    if (!A.data.empty() && std::abs(A[0]) < 1e-8) {
+        PolyD Acopy = A;
+        Acopy.data[0] = 0.0;
+        return poly_atan(Acopy, n);
+    }
+    assert(A.data.empty() || std::abs(A[0]) < EPS);
+    PolyD DA = A.deriv();
+    PolyD one(1.0);
+    PolyD den = one + (A * A).trunc(n);
+    return (DA * den.inv(n)).trunc(n - 1).integ().trunc(n);
+}
 	
 // ---------- 双曲函数（带归一化） ----------
 	inline void poly_sinhcosh(const PolyD& A, int n, PolyD& sinhA, PolyD& coshA) {
@@ -450,15 +460,17 @@ namespace poly_avx {
 		return (S * C.inv(n)).trunc(n);
 	}
 	// log1p(A) = log(1 + A), 要求常数项为 0
-// 内部直接调用 log(1+A)，但封装后语义更清晰，且方便后续替换为更高效的级数展开。
-	inline PolyD poly_log1p(const PolyD& A, int n) {
-		assert(A.data.empty() || std::abs(A[0]) < 1e-9);
-		PolyD one(1.0);
-		return (one + A).log(n);
-	}
-// ---------- 反双曲函数 ----------
-	// asinh(A)，常数项 0
-	// asinh(A)，常数项 0。使用 log1p 稳定公式避免 x≈0 时的精度损失。
+inline PolyD poly_log1p(const PolyD& A, int n) {
+    // 如果常数项非零但非常小（浮点噪声），自动清零
+    PolyD Acopy = A;
+    if (!Acopy.data.empty() && std::abs(Acopy.data[0]) < 1e-8) {
+        Acopy.data[0] = 0.0;
+    }
+    assert(Acopy.data.empty() || std::abs(Acopy.data[0]) < 1e-8);
+    PolyD one(1.0);
+    return (one + Acopy).log(n);
+}
+// asinh(A)，常数项 0。使用 log1p 稳定公式避免 x≈0 时的精度损失。
 inline PolyD poly_asinh(const PolyD& A, int n) {
     assert(A.data.empty() || std::abs(A[0]) < EPS);
     if (A.data.empty()) return PolyD(n);            // A = 0 → asinh(0) = 0
@@ -496,16 +508,19 @@ inline PolyD poly_asinh(const PolyD& A, int n) {
 		res.data[0] = acosh_c;                           // 强制常数项为精确值
 		return res.trunc(n);
 	}
-// *** 改进版 atanh：对数恒等式 ***
-	// atanh(A) = 0.5 * (log(1+A) - log(1-A)), 常数项 0
-	inline PolyD poly_atanh(const PolyD& A, int n) {
-		assert(A.data.empty() || std::abs(A[0]) < EPS);
-		PolyD one(1.0);
-		PolyD log1pA = (one + A).log(n);   // log(1+A)
-		PolyD log1mA = (one - A).log(n);   // log(1-A)
-		return ((log1pA - log1mA) * 0.5).trunc(n);
-	}
-	
+inline PolyD poly_atanh(const PolyD& A, int n) {
+    // 允许极小的浮点噪声作为常数项
+    if (!A.data.empty() && std::abs(A[0]) < 1e-8) {
+        PolyD Acopy = A;
+        Acopy.data[0] = 0.0;
+        return poly_atanh(Acopy, n);
+    }
+    assert(A.data.empty() || std::abs(A[0]) < EPS);
+    PolyD one(1.0);
+    PolyD log1pA = (one + A).log(n);   // log(1+A)
+    PolyD log1mA = (one - A).log(n);   // log(1-A)
+    return ((log1pA - log1mA) * 0.5).trunc(n);
+}
 // ==================== 扩展功能 ====================
 	
 // ---------- 阶乘 / 二项式系数 ----------
@@ -639,16 +654,16 @@ inline PolyD poly_asinh(const PolyD& A, int n) {
 	}
 	
 // ---------- 特殊函数 ----------
-	inline PolyD poly_erf(int n) {
-		std::vector<double> c(n, 0.0);
-		double f = 2.0 / std::sqrt(PI);
-		for (int k = 0; 2*k+1 < n; ++k) {
-			int i = 2*k+1;
-			double term = f * ((k%2)?-1.0:1.0) / (gamma_half_int(k+1) * (2*k+1));
-			c[i] = term;
-		}
-		return PolyD(c);
-	}
+	inline PolyD poly_erf(const PolyD& A, int n) {
+    if (!A.data.empty() && std::abs(A[0]) < 1e-8) {
+        PolyD Acopy = A;
+        Acopy.data[0] = 0.0;
+        return poly_erf(Acopy, n);
+    }
+    assert(A.data.empty() || std::abs(A[0]) < EPS);
+    PolyD erf_series = poly_erf(n);
+    return poly_composite(erf_series, A, n);
+}
 	
 	inline PolyD poly_erf(const PolyD& A, int n) {
 		assert(A.data.empty() || std::abs(A[0]) < EPS);
