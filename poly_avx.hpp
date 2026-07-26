@@ -449,31 +449,53 @@ namespace poly_avx {
 		PolyD C = poly_cosh(A, n);
 		return (S * C.inv(n)).trunc(n);
 	}
-	
+	// log1p(A) = log(1 + A), 要求常数项为 0
+// 内部直接调用 log(1+A)，但封装后语义更清晰，且方便后续替换为更高效的级数展开。
+	inline PolyD poly_log1p(const PolyD& A, int n) {
+		assert(A.data.empty() || std::abs(A[0]) < EPS);
+		PolyD one(1.0);
+		return (one + A).log(n);
+	}
 // ---------- 反双曲函数 ----------
+	// asinh(A)，常数项 0
 	inline PolyD poly_asinh(const PolyD& A, int n) {
 		assert(A.data.empty() || std::abs(A[0]) < EPS);
-		PolyD DA = A.deriv();
+		if (A.data.empty()) return PolyD(n);            // A = 0 → asinh(0) = 0
+		bool negative = (A.data[0] < 0);                // 记录符号（常数项为0时用下一项判断）
+		if (A.data.size() > 1 && A.data[0] == 0.0)
+			negative = (A.data[1] < 0);
+		PolyD absA = negative ? (A * (-1.0)) : A;       // |A|
 		PolyD one(1.0);
-		PolyD A2 = (A * A).trunc(n);
-		PolyD sqrt_term = (one + A2).sqrt(n);
-		return (DA * sqrt_term.inv(n)).trunc(n - 1).integ().trunc(n);
+		PolyD A2 = (absA * absA).trunc(n);
+		PolyD sqrt_term = (one + A2).sqrt(n);           // sqrt(1 + A²)
+		PolyD denom = one + sqrt_term;                  // 1 + sqrt(1 + A²)
+		// 核心公式：log1p(|A| + A² / (1 + sqrt(1 + A²)))
+		PolyD frac = (A2 * denom.inv(n)).trunc(n);      // A² / (1 + sqrt(1 + A²))
+		PolyD inner = absA + frac;                      // |A| + A² / (1 + sqrt(1 + A²))
+		PolyD res = poly_log1p(inner, n);
+		if (negative) res = res * (-1.0);               // 恢复符号
+		return res.trunc(n);
 	}
 	
+	// acosh(A)，常数项 > 1
 	inline PolyD poly_acosh(const PolyD& A, int n) {
-		assert(!A.data.empty() && A[0] > 1.0 + EPS);
-		PolyD DA = A.deriv();
+		assert(!A.data.empty() && A.data[0] > 1.0 + EPS);
+		double c = A.data[0];
+		// 常数项使用标量 acosh 保证精度
+		double acosh_c = std::log(c + std::sqrt(c * c - 1.0));
 		PolyD one(1.0);
-		PolyD A2 = (A * A).trunc(n);
-		PolyD sqrt_term = (A2 - one).sqrt(n);
-		PolyD integrand = (DA * sqrt_term.inv(n)).trunc(n - 1);
-		PolyD res = integrand.integ().trunc(n);
-		double c = A[0];
-		res[0] = std::log(c + std::sqrt(c*c - 1.0));
-		return res;
+		PolyD t = A - one;                               // t = A - 1，常数项 t[0] = c - 1
+		PolyD two(2.0);
+		PolyD t2 = (t * t).trunc(n);
+		PolyD inner = (t * two + t2).trunc(n);           // 2t + t²
+		PolyD sqrt_term = inner.sqrt(n);                 // sqrt(2t + t²)
+		PolyD sum = t + sqrt_term;                       // t + sqrt(2t + t²)
+		PolyD res = poly_log1p(sum, n);                  // log1p(t + sqrt(2t + t²))
+		res.data[0] = acosh_c;                           // 强制常数项为精确值
+		return res.trunc(n);
 	}
-	
 // *** 改进版 atanh：对数恒等式 ***
+	// atanh(A) = 0.5 * (log(1+A) - log(1-A)), 常数项 0
 	inline PolyD poly_atanh(const PolyD& A, int n) {
 		assert(A.data.empty() || std::abs(A[0]) < EPS);
 		PolyD one(1.0);
