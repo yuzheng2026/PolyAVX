@@ -493,23 +493,25 @@ inline PolyD poly_asinh(const PolyD& A, int n) {
     return res.trunc(n);
 }
 	
-	// acosh(A)，常数项 > 1
-	inline PolyD poly_acosh(const PolyD& A, int n) {
-		assert(!A.data.empty() && A.data[0] > 1.0 + EPS);
-		double c = A.data[0];
-		// 常数项使用标量 acosh 保证精度
-		double acosh_c = std::log(c + std::sqrt(c * c - 1.0));
-		PolyD one(1.0);
-		PolyD t = A - one;                               // t = A - 1，常数项 t[0] = c - 1
-		PolyD two(2.0);
-		PolyD t2 = (t * t).trunc(n);
-		PolyD inner = (t * two + t2).trunc(n);           // 2t + t²
-		PolyD sqrt_term = inner.sqrt(n);                 // sqrt(2t + t²)
-		PolyD sum = t + sqrt_term;                       // t + sqrt(2t + t²)
-		PolyD res = poly_log1p(sum, n);                  // log1p(t + sqrt(2t + t²))
-		res.data[0] = acosh_c;                           // 强制常数项为精确值
-		return res.trunc(n);
-	}
+// acosh(A)，常数项 > 1。使用 log1p 变形避免 x≈1 时的灾难性抵消。
+inline PolyD poly_acosh(const PolyD& A, int n) {
+    assert(!A.data.empty() && A.data[0] > 1.0 + EPS);
+    double c = A.data[0];
+    // 常数项使用标量 acosh 保证精度
+    double acosh_c = std::log(c + std::sqrt(c * c - 1.0));
+    PolyD one(1.0);
+    PolyD t = A - one;                               // t = A - 1
+    PolyD two(2.0);
+    PolyD t2 = (t * t).trunc(n);
+    PolyD inner = (t * two + t2).trunc(n);           // 2t + t²
+    PolyD sqrt_term = inner.sqrt(n);                 // sqrt(2t + t²)
+    PolyD sum = t + sqrt_term;                       // t + sqrt(2t + t²)
+    // 注意：这里不能用 poly_log1p，因为 sum 的常数项可以远大于 0。
+    // 直接计算 log(1 + sum)，然后强制常数项为精确值。
+    PolyD res = (one + sum).log(n);                  // log(1 + sum)
+    res.data[0] = acosh_c;                           // 强制常数项为精确值
+    return res.trunc(n);
+}
 inline PolyD poly_atanh(const PolyD& A, int n) {
     PolyD Acopy = A;
     if (!Acopy.data.empty() && std::abs(Acopy.data[0]) < 1e-8) {
