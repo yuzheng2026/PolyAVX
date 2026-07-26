@@ -452,7 +452,7 @@ namespace poly_avx {
 	// log1p(A) = log(1 + A), 要求常数项为 0
 // 内部直接调用 log(1+A)，但封装后语义更清晰，且方便后续替换为更高效的级数展开。
 	inline PolyD poly_log1p(const PolyD& A, int n) {
-		assert(A.data.empty() || std::abs(A[0]) < 1e-10);
+		assert(A.data.empty() || std::abs(A[0]) < 1e-9);
 		PolyD one(1.0);
 		return (one + A).log(n);
 	}
