@@ -393,15 +393,14 @@ namespace poly_avx {
 	
 // ---------- 反三角函数 ----------
 inline PolyD poly_asin(const PolyD& A, int n) {
-    if (!A.data.empty() && std::abs(A[0]) < 1e-8) {
-        PolyD Acopy = A;
+    PolyD Acopy = A;
+    if (!Acopy.data.empty() && std::abs(Acopy.data[0]) < 1e-8) {
         Acopy.data[0] = 0.0;
-        return poly_asin(Acopy, n);
     }
-    assert(A.data.empty() || std::abs(A[0]) < EPS);
-    PolyD DA = A.deriv();
+    assert(Acopy.data.empty() || std::abs(Acopy.data[0]) < EPS);
+    PolyD DA = Acopy.deriv();
     PolyD one(1.0);
-    PolyD sqrt_term = (one - (A * A).trunc(n)).sqrt(n);
+    PolyD sqrt_term = (one - (Acopy * Acopy).trunc(n)).sqrt(n);
     return (DA * sqrt_term.inv(n)).trunc(n - 1).integ().trunc(n);
 }
 	inline PolyD poly_acos(const PolyD& A, int n) {
@@ -411,11 +410,16 @@ inline PolyD poly_asin(const PolyD& A, int n) {
 		return asinA;
 	}
 inline PolyD poly_atan(const PolyD& A, int n) {
-    if (!A.data.empty() && std::abs(A[0]) < 1e-8) {
-        PolyD Acopy = A;
+    PolyD Acopy = A;
+    if (!Acopy.data.empty() && std::abs(Acopy.data[0]) < 1e-8) {
         Acopy.data[0] = 0.0;
-        return poly_atan(Acopy, n);
     }
+    assert(Acopy.data.empty() || std::abs(Acopy.data[0]) < EPS);
+    PolyD DA = Acopy.deriv();
+    PolyD one(1.0);
+    PolyD den = one + (Acopy * Acopy).trunc(n);
+    return (DA * den.inv(n)).trunc(n - 1).integ().trunc(n);
+}
     assert(A.data.empty() || std::abs(A[0]) < EPS);
     PolyD DA = A.deriv();
     PolyD one(1.0);
@@ -509,16 +513,14 @@ inline PolyD poly_asinh(const PolyD& A, int n) {
 		return res.trunc(n);
 	}
 inline PolyD poly_atanh(const PolyD& A, int n) {
-    // 允许极小的浮点噪声作为常数项
-    if (!A.data.empty() && std::abs(A[0]) < 1e-8) {
-        PolyD Acopy = A;
+    PolyD Acopy = A;
+    if (!Acopy.data.empty() && std::abs(Acopy.data[0]) < 1e-8) {
         Acopy.data[0] = 0.0;
-        return poly_atanh(Acopy, n);
     }
-    assert(A.data.empty() || std::abs(A[0]) < EPS);
+    assert(Acopy.data.empty() || std::abs(Acopy.data[0]) < EPS);
     PolyD one(1.0);
-    PolyD log1pA = (one + A).log(n);   // log(1+A)
-    PolyD log1mA = (one - A).log(n);   // log(1-A)
+    PolyD log1pA = (one + Acopy).log(n);
+    PolyD log1mA = (one - Acopy).log(n);
     return ((log1pA - log1mA) * 0.5).trunc(n);
 }
 // ==================== 扩展功能 ====================
@@ -653,7 +655,6 @@ inline double gamma_half_int(int n) {
     return res;
 }
 
-// ---------- 特殊函数：erf ----------
 // 生成 erf 泰勒级数（前 n 项）
 inline PolyD poly_erf(int n) {
     std::vector<double> c(n, 0.0);
@@ -666,17 +667,15 @@ inline PolyD poly_erf(int n) {
     return PolyD(c);
 }
 
-// erf(A(x))，要求 A(0)=0。若常数项有微小浮点噪声则自动清零。
+// erf(A(x))，要求 A(0)=0。若常数项有微小浮点噪声则直接清零后重新计算。
 inline PolyD poly_erf(const PolyD& A, int n) {
-    // 允许极小的浮点噪声作为常数项
-    if (!A.data.empty() && std::abs(A[0]) < 1e-8 && std::abs(A[0]) > 0.0) {
-        PolyD Acopy = A;
-        Acopy.data[0] = 0.0;
-        return poly_erf(Acopy, n);
+    PolyD Acopy = A;
+    if (!Acopy.data.empty() && std::abs(Acopy.data[0]) < 1e-8) {
+        Acopy.data[0] = 0.0;   // 直接清零，不递归
     }
-    assert(A.data.empty() || std::abs(A[0]) < EPS);
-    PolyD erf_series = poly_erf(n);   // 调用上面的版本生成级数
-    return poly_composite(erf_series, A, n);
+    assert(Acopy.data.empty() || std::abs(Acopy.data[0]) < EPS);
+    PolyD erf_series = poly_erf(n);
+    return poly_composite(erf_series, Acopy, n);
 }
 	
 	inline PolyD poly_bessel_J0(int n) {
