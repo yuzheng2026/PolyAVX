@@ -646,30 +646,38 @@ inline PolyD poly_atanh(const PolyD& A, int n) {
 	}
 	
 // ---------- 辅助：计算 gamma(n + 0.5) 的值 (n 为整数, C++98 兼容) ----------
-	inline double gamma_half_int(int n) {
-		double res = std::sqrt(PI);
-		for (int i = 1; i <= n; ++i)
-			res *= (i - 0.5);
-		return res;
-	}
-	
-// ---------- 特殊函数 ----------
-	inline PolyD poly_erf(const PolyD& A, int n) {
-    if (!A.data.empty() && std::abs(A[0]) < 1e-8) {
+inline double gamma_half_int(int n) {
+    double res = std::sqrt(PI);
+    for (int i = 1; i <= n; ++i)
+        res *= (i - 0.5);
+    return res;
+}
+
+// ---------- 特殊函数：erf ----------
+// 生成 erf 泰勒级数（前 n 项）
+inline PolyD poly_erf(int n) {
+    std::vector<double> c(n, 0.0);
+    double f = 2.0 / std::sqrt(PI);
+    for (int k = 0; 2*k+1 < n; ++k) {
+        int i = 2*k+1;
+        double term = f * ((k%2)?-1.0:1.0) / (gamma_half_int(k+1) * (2*k+1));
+        c[i] = term;
+    }
+    return PolyD(c);
+}
+
+// erf(A(x))，要求 A(0)=0。若常数项有微小浮点噪声则自动清零。
+inline PolyD poly_erf(const PolyD& A, int n) {
+    // 允许极小的浮点噪声作为常数项
+    if (!A.data.empty() && std::abs(A[0]) < 1e-8 && std::abs(A[0]) > 0.0) {
         PolyD Acopy = A;
         Acopy.data[0] = 0.0;
         return poly_erf(Acopy, n);
     }
     assert(A.data.empty() || std::abs(A[0]) < EPS);
-    PolyD erf_series = poly_erf(n);
+    PolyD erf_series = poly_erf(n);   // 调用上面的版本生成级数
     return poly_composite(erf_series, A, n);
 }
-	
-	inline PolyD poly_erf(const PolyD& A, int n) {
-		assert(A.data.empty() || std::abs(A[0]) < EPS);
-		PolyD erf_series = poly_erf(n);
-		return poly_composite(erf_series, A, n);
-	}
 	
 	inline PolyD poly_bessel_J0(int n) {
 		std::vector<double> c(n, 0.0);
