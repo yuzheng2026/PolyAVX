@@ -14,10 +14,10 @@ jobs:
         compiler: [g++, clang++]
         fma: [ON, OFF]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5          # ← 这里从 v4 改为 v5
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y g++ clang
-    - name: Build and run validation test
+    - name: Build and run test
       run: |
         FMA_FLAG=""
         if [ "${{ matrix.fma }}" = "ON" ]; then
