@@ -41,7 +41,7 @@ A Chinese version of this document is available at [README_CN.md](README_CN.md).
 ### Hyperbolic & inverse hyperbolic
 - `poly_sinh(A, n)`, `poly_cosh(A, n)`, `poly_tanh(A, n)`
 - `poly_asinh(A, n)`, `poly_acosh(A, n)`, `poly_atanh(A, n)`
-  (both integral‑form and log‑identity versions available)
+  (integral‑form, log‑identity, and log1p‑stabilised versions available)
 
 ### Extended operations
 - `poly_shift(A, c, n)` – Taylor shift (`A(x+c)`)
@@ -63,17 +63,19 @@ Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (trunc
 
 | Identity                  | Error       |
 |---------------------------|-------------|
-| `(1/A) * A`               | ~4e-15      |
-| `sqrt(A)² - A`            | ~9e-16      |
-| `exp(log(A)) - A`         | ~1.5e-15    |
-| `sin² + cos²`             | ~6e-13      |
-| `cosh² - sinh²`           | ~9e-13      |
-| `sin(asin(A₀)) - A₀`     | ~5e-12      |
-| `sinh(asinh(A₀)) - A₀`   | ~5e-12      |
-| `tanh(atanh(A₀)) - A₀`   | ~2e-10      |
+| `(1/A) * A`               | ~1.7e-15    |
+| `sqrt(A)² - A`            | ~1.3e-15    |
+| `exp(log(A)) - A`         | ~1.3e-15    |
+| `sin² + cos²`             | ~1.4e-12    |
+| `cosh² - sinh²`           | ~4.9e-13    |
+| `sin(asin(A₀)) - A₀`     | ~7.0e-11    |
+| `sinh(asinh(A₀)) - A₀`   | ~1.3e-10    |
+| `tanh(atanh(A₀)) - A₀`   | ~1.2e-09    |
 
-`atanh` uses the log‑identity form and can be further tuned; the integral‑based
-version offers ~2.1e‑10 accuracy.
+Inverse hyperbolic functions (`asinh`, `acosh`, `atanh`) now use **log1p‑stabilised** formulas
+to avoid catastrophic cancellation near the origin and near unity. The residual error in
+`tanh(atanh(…))` is dominated by the long chain of FFT, Newton iterations, and truncation
+operations – a fundamental limit of double‑precision arithmetic.
 
 ## Requirements
 
@@ -84,25 +86,62 @@ version offers ~2.1e‑10 accuracy.
 ## Compilation
 
 ```bash
-g++ -O3 -march=native -mfma -std=c++98 your_program.cpp -o your_program
+g++ -O3 -march=native -mfma -std=c++98 your_program.cpp cpu_dispatch.cpp -o your_program
 ```
-If your CPU doesn't support FMA, drop -mfma – the library falls back to add/sub
+
+If your CPU doesn’t support FMA, drop `-mfma` – the library falls back to add/sub
 SIMD intrinsics automatically.
 
-## Precompiled header (optional)
-You can speed up compilation of projects that include poly_avx.hpp by generating a
-precompiled header (.gch). Use the exact same compiler options as when
+### Precompiled header (optional)
+
+You can speed up compilation of projects that include `poly_avx.hpp` by generating a
+**precompiled header** (`.gch`). Use the **exact same compiler options** as when
 building your program:
 
 ```bash
 g++ -O3 -march=native -mfma -std=c++98 poly_avx.hpp -o poly_avx.hpp.gch
 ```
-Place the resulting poly_avx.hpp.gch in the same directory as poly_avx.hpp.
-GCC will automatically use it if the compile flags match.
-Note: Do not commit the .gch file to version control – it is compiler‑specific
-and can be regenerated on demand. Add *.gch to your .gitignore.
+
+Place the resulting `poly_avx.hpp.gch` in the same directory as `poly_avx.hpp`.
+GCC will automatically use it if the compile flags match.  
+**Note:** Do **not** commit the `.gch` file to version control – it is compiler‑specific
+and can be regenerated on demand. Add `*.gch` to your `.gitignore`.
+
+## Runtime CPU dispatch
+
+PolyAVX automatically detects the SIMD capabilities of your CPU at startup and selects
+the fastest available implementation of the core complex‑multiplication routine. The
+same binary runs optimally on all x86‑64 processors – no recompilation needed.
+
+**Supported paths (in priority order):**
+1. **AVX‑512F** (if compiled with `-mavx512f` and supported by the CPU)
+2. **AVX + FMA3** (if compiled with `-mavx` and supported by the CPU)
+3. **SSE3** (fallback, available on all x86‑64 CPUs)
+
+**How it works:**
+- Detection uses GCC/Clang's built‑in `__builtin_cpu_supports` function, called once at startup.
+- The global function pointer `pointwise_mul` is set to `pointwise_mul_avx512`,
+  `pointwise_mul_avx`, or `pointwise_mul_sse3` accordingly.
+- All dispatch logic lives in `cpu_dispatch.cpp` and is initialised before `main()` via a
+  global constructor – completely transparent to users.
+
+**Compilation with dispatch:**
+
+```bash
+g++ -O3 -march=native -mfma -std=c++98 your_program.cpp cpu_dispatch.cpp -o your_program
+```
+
+The `-march=native` flag allows the compiler to generate AVX/AVX‑512 code for your
+current CPU; the runtime dispatcher ensures that the resulting binary safely falls
+back to SSE3 on older hardware.
+
+If you prefer a **static, single‑file build** (no dispatch), simply omit `cpu_dispatch.cpp`
+from the command line – the library then reverts to compile‑time macro selection.
+You can also merge `cpu_dispatch.cpp` back into `poly_avx.hpp` to restore a true
+single‑header library.
 
 ## Quick example
+
 ```cpp
 #include "poly_avx.hpp"
 #include <iostream>
@@ -132,45 +171,45 @@ int main() {
     return 0;
 }
 ```
+
 ## Acknowledgements
+
 This library was created through an extensive collaboration between the author
-and DeepSeek AI. The AI provided initial code drafts, algorithms explanations,
+and **DeepSeek AI**. The AI provided initial code drafts, algorithms explanations,
 and debugging assistance; the author performed rigorous testing, optimisation,
 and finalisation of every feature.
 
-Special thanks to [original author's name] for the original [original library name] library,
-which inspired this project. PolyAVX extends the concept with AVX-512 support,
-additional functions, and a self-contained C++98 single-header implementation.
+**Special thanks** to [original author's name] for the original [original library name] library,
+which inspired this project. PolyAVX extends the concept with AVX‑512 support,
+additional functions, and a self‑contained C++98 single‑header implementation.
 The original library is licensed under GPLv3. PolyAVX is an independent
 re‑implementation inspired by it, licensed under GPLv3 to stay true to the same spirit.
 
 ## Contributing
+
 Contributions are warmly welcomed! If you're interested in pushing PolyAVX
 even closer to the metal, here are some concrete directions:
 
-**C API (extern "C" wrappers around core functions) – enables linking from
-C, Python, Rust, etc.**
-
-**Hand‑tuned assembly / intrinsics for FFT butterflies or complex multiply
-(especially for Zen 4, Golden Cove, Xeon series, etc.).**
-
-**Non‑STL memory backend – replace std::vector with a custom allocator so
-the library can be used in kernel / embedded contexts.**
-
-**Runtime CPU dispatch – detect AVX‑512 / FMA at runtime and select the best
-implementation without recompiling.**
-
-**Benchmarks and CI – a reproducible benchmark suite that tracks performance
-improvements.**
+- **C API** (`extern "C"` wrappers around core functions) – enables linking from
+  C, Python, Rust, etc.
+- **Hand‑tuned assembly / intrinsics** for FFT butterflies or complex multiply
+  (especially for Zen 4, Golden Cove, Xeon series, etc.).
+- **Non‑STL memory backend** – replace `std::vector` with a custom allocator so
+  the library can be used in kernel / embedded contexts.
+- **Runtime CPU dispatch** – detect AVX‑512 / FMA at runtime and select the best
+  implementation without recompiling. *(Already implemented — improvements welcome!)*
+- **Benchmarks and CI** – a reproducible benchmark suite that tracks performance
+  improvements.
 
 If you plan to work on these, please open an issue first so we can discuss the
-best approach. The main logic resides in poly_avx.hpp; functions like
-pointwise_mul, fft, convolution, and Poly::log / Poly::exp are the
+best approach. The main logic resides in `poly_avx.hpp`; functions like
+`pointwise_mul`, `fft`, `convolution`, and `Poly::log` / `Poly::exp` are the
 most performance‑critical.
 
 ## License
-This project is licensed under the GNU General Public License v3.0 (GPLv3)
+
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**
 or (at your option) any later version.
-See the LICENSE file for the full text.
+See the [LICENSE](LICENSE) file for the full text.
 
 © 2026 yuzheng2026. Licensed under GPLv3.
