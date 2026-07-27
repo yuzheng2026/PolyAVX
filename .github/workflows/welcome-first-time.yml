@@ -1,0 +1,17 @@
+name: Welcome First-Time Contributors
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: '欢迎提出你的第一个 Issue！我们会尽快处理。'
+          pr-message: '感谢你提交第一个 PR！维护者会尽快审查。'
