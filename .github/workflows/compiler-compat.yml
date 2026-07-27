@@ -2,20 +2,103 @@ name: Compiler Compatibility
 
 on:
   schedule:
-    - cron: '0 0 1 * *'   # 每月1号运行
-  workflow_dispatch:
+    - cron: '0 0 1 * *'   # 每月 1 号午夜运行
+  workflow_dispatch:        # 允许手动触发
 
 jobs:
-  test:
+  gcc:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        compiler: [g++-11, g++-12, g++-13, clang++-14, clang++-15, clang++-16]
+        version: [11, 12, 13, 14, 15]
+        fma: [ON, OFF]
+    name: GCC ${{ matrix.version }} (FMA=${{ matrix.fma }})
     steps:
     - uses: actions/checkout@v5
-    - name: Install compiler
-      run: sudo apt-get install -y ${{ matrix.compiler }}
-    - name: Build and run test
+    - name: Install GCC
       run: |
-        ${{ matrix.compiler }} -O3 -march=native -mfma -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
+        sudo apt-get update
+        sudo apt-get install -y g++-${{ matrix.version }}
+    - name: Build and test
+      run: |
+        FMA_FLAG=""
+        if [ "${{ matrix.fma }}" = "ON" ]; then
+          FMA_FLAG="-mfma"
+        fi
+        g++-${{ matrix.version }} -O3 -march=native $FMA_FLAG -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
+        ./validate
+
+  clang:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [14, 15, 16, 17, 18]
+        fma: [ON, OFF]
+    name: Clang ${{ matrix.version }} (FMA=${{ matrix.fma }})
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install Clang
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-${{ matrix.version }}
+    - name: Build and test
+      run: |
+        FMA_FLAG=""
+        if [ "${{ matrix.fma }}" = "ON" ]; then
+          FMA_FLAG="-mfma"
+        fi
+        clang++-${{ matrix.version }} -O3 -march=native $FMA_FLAG -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
+        ./validate
+
+  msvc:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64]
+        fma: [ON, OFF]
+    name: MSVC (FMA=${{ matrix.fma }})
+    steps:
+    - uses: actions/checkout@v5
+    - name: Build and test
+      run: |
+        $FMA_FLAG = ""
+        if ("${{ matrix.fma }}" -eq "ON") {
+          $FMA_FLAG = "/arch:AVX2"
+        }
+        cl /O2 $FMA_FLAG /EHsc /std:c++14 validate.cpp cpu_dispatch.cpp /Fe:validate.exe
+        ./validate.exe
+
+  macos-clang:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        fma: [ON, OFF]
+    name: macOS Apple Clang (FMA=${{ matrix.fma }})
+    steps:
+    - uses: actions/checkout@v5
+    - name: Build and test
+      run: |
+        FMA_FLAG=""
+        if [ "${{ matrix.fma }}" = "ON" ]; then
+          FMA_FLAG="-mfma"
+        fi
+        clang++ -O3 -march=native $FMA_FLAG -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
+        ./validate
+
+  old-gcc:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        version: [7, 8, 9, 10]
+        fma: [OFF]
+    name: Old GCC ${{ matrix.version }} (FMA=OFF)
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install GCC
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y g++-${{ matrix.version }}
+    - name: Build and test
+      run: |
+        g++-${{ matrix.version }} -O3 -march=native -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
         ./validate
