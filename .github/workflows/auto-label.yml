@@ -1,0 +1,49 @@
+name: AI Issue Labeling (Qwen)
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Qwen API to determine label
+        id: ai
+        run: |
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ISSUE_BODY="${{ github.event.issue.body }}"
+          PROMPT="请根据以下Issue内容，从下面标签中选择最合适的一个：bug, enhancement, question, documentation, good first issue, help wanted。只输出标签名称，不要加任何解释。\n\n标题：${ISSUE_TITLE}\n\n内容：${ISSUE_BODY}"
+          
+          RESPONSE=$(curl -s "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.QWEN_API_KEY }}" \
+            -d "{
+              \"model\": \"qwen-turbo\",
+              \"input\": {
+                \"messages\": [
+                  {\"role\": \"user\", \"content\": $(echo "$PROMPT" | jq -Rs .)}
+                ]
+              },
+              \"parameters\": {
+                \"result_format\": \"message\"
+              }
+            }")
+          
+          LABEL=$(echo "$RESPONSE" | jq -r '.output.choices[0].message.content // ""')
+          echo "label=$LABEL" >> $GITHUB_OUTPUT
+      
+      - name: Apply label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = `${{ steps.ai.outputs.label }}`.trim();
+            const validLabels = ['bug', 'enhancement', 'question', 'documentation', 'good first issue', 'help wanted'];
+            if (validLabels.includes(label)) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: [label]
+              });
+            }
