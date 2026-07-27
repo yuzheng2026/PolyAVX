@@ -1,0 +1,21 @@
+name: Compiler Compatibility
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'   # 每月1号运行
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++-11, g++-12, g++-13, clang++-14, clang++-15, clang++-16]
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install compiler
+      run: sudo apt-get install -y ${{ matrix.compiler }}
+    - name: Build and run test
+      run: |
+        ${{ matrix.compiler }} -O3 -march=native -mfma -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
+        ./validate
