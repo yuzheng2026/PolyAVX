@@ -8,7 +8,7 @@
 [![Top language](https://img.shields.io/github/languages/top/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![Repo size](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
-
+[![PolyChain](https://img.shields.io/badge/Related-PolyChain-blue?style=flat&logo=github)](https://github.com/yuzheng2026/PolyChain)
 A single‑header, high‑speed polynomial / formal power series library for **x86‑64** with
 **SSE3 / AVX / AVX‑512** and **FMA3** acceleration.
 All operations use FFT‑based convolution and are optimised for **double** precision.
