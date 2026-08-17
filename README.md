@@ -8,10 +8,11 @@
 [![Top language](https://img.shields.io/github/languages/top/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![Repo size](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
+
+**Related project**: [PolyChain Blockchain Simulator](https://github.com/yuzheng2026/QtWidgetsApplication1)
 A single‑header, high‑speed polynomial / formal power series library for **x86‑64** with
 **SSE3 / AVX / AVX‑512** and **FMA3** acceleration.
 All operations use FFT‑based convolution and are optimised for **double** precision.
-**Related project**: [PolyChain Blockchain Simulator](https://github.com/yuzheng2026/QtWidgetsApplication1)
 A Chinese version of this document is available at [README_CN.md](README_CN.md).
 
 ## Features
