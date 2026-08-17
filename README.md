@@ -193,7 +193,7 @@ and **DeepSeek AI**. The AI provided initial code drafts, algorithms explanation
 and debugging assistance; the author performed rigorous testing, optimisation,
 and finalisation of every feature.
 
-**Special thanks** to [original author's name] for the original [original library name] library,
+**Special thanks** to ExplodingKonjac for the original libcp library,
 which inspired this project. PolyAVX extends the concept with AVX‑512 support,
 additional functions, and a self‑contained C++98 single‑header implementation.
 The original library is licensed under GPLv3. PolyAVX is an independent
