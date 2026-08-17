@@ -10,6 +10,7 @@
 [![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
 
 **Related project**: [PolyChain Blockchain Simulator](https://github.com/yuzheng2026/QtWidgetsApplication1)
+
 A single‑header, high‑speed polynomial / formal power series library for **x86‑64** with
 **SSE3 / AVX / AVX‑512** and **FMA3** acceleration.
 All operations use FFT‑based convolution and are optimised for **double** precision.
