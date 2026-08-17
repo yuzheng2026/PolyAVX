@@ -9,6 +9,8 @@
 [![仓库大小](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
 
+**相关项目**: [PolyChain 区块链模拟器](https://github.com/yuzheng2026/PolyChain)
+
 一个用于 **x86‑64** 平台的高性能多项式/形式幂级数单头文件库，全面支持 **SSE3 / AVX / AVX‑512** 和 **FMA3** 指令集加速。  
 所有运算均采用基于 FFT 的卷积，并针对 **双精度浮点** 进行深度优化。
 
