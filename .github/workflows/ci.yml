@@ -23,7 +23,7 @@ jobs:
         if [ "${{ matrix.fma }}" = "ON" ]; then
           FMA_FLAG="-mfma"
         fi
-        ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 validate.cpp cpu_dispatch.cpp -o validate
+        ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 AVX.cpp cpu_dispatch.cpp -o AVX.exe
         ./validate
     - name: Build and run benchmark
       run: |
