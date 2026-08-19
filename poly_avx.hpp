@@ -499,21 +499,25 @@ namespace poly_avx {
 		return res;
 	}
 	
-	// acosh(A)，常数项 > 1
 	inline PolyD poly_acosh(const PolyD& A, int n) {
 		assert(!A.data.empty() && A.data[0] > 1.0 + EPS);
 		double c = A.data[0];
-		// 常数项使用标量 acosh 保证精度
 		double acosh_c = std::log(c + std::sqrt(c * c - 1.0));
 		PolyD one(1.0);
-		PolyD t = A - one;                               // t = A - 1，常数项 t[0] = c - 1
+		PolyD t = A - one;
 		PolyD two(2.0);
 		PolyD t2 = (t * t).trunc(n);
-		PolyD inner = (t * two + t2).trunc(n);           // 2t + t²
-		PolyD sqrt_term = inner.sqrt(n);                 // sqrt(2t + t²)
-		PolyD sum = t + sqrt_term;                       // t + sqrt(2t + t²)
-		PolyD res = poly_log1p(sum, n);                  // log1p(t + sqrt(2t + t²))
-		res.data[0] = acosh_c;                           // 强制常数项为精确值
+		PolyD inner = (t * two + t2).trunc(n);
+		PolyD sqrt_term = inner.sqrt(n);
+		PolyD sum = t + sqrt_term;
+		
+		// 设 d = sum[0]，则 log(1 + sum) = log(1 + d) + log(1 + (sum - d)/(1 + d))
+		double d = sum[0];                          // d = c - 1 + sqrt(c² - 1)
+		PolyD temp = sum - PolyD(d);                // 去常数项
+		if (!temp.data.empty()) temp.data[0] = 0.0; // 强制清零，避免浮点噪声
+		PolyD shifted = temp * (1.0 / (1.0 + d));  // 常数项变为 0
+		PolyD res = poly_log1p(shifted, n);         // 此时满足 poly_log1p 条件
+		res.data[0] = acosh_c;                      // 设置精确常数项（log(1+d) 的理论值）
 		return res.trunc(n);
 	}
 	inline PolyD poly_atanh(const PolyD& A, int n) {
