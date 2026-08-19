@@ -63,18 +63,18 @@ Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (trunc
 
 | Identity                  | Error         |
 |---------------------------|---------------|
-| `(1/A) * A`               | 4.03e-15      |
-| `sqrt(A)² - A`            | 8.88e-16      |
-| `exp(log(A)) - A`         | 1.67e-15      |
-| `sin² + cos²`             | 1.24e-14      |
-| `cosh² - sinh²`           | 3.55e-14      |
-| `sin(asin(A₀)) - A₀`     | 2.64e-12      |
-| `sinh(asinh(A₀)) - A₀`   | 3.68e-12      |
-| `tanh(atanh(A₀)) - A₀`   | 8.00e-11      |
-| `J1(0.5) - reference`     | 6.75e-14 *    |
+| `(1/A) * A`               | 4.03258274671028e-15      |
+| `sqrt(A)² - A`            | 8.88178419700125e-16      |
+| `exp(log(A)) - A`         | 1.67322464904201e-15      |
+| `sin² + cos²`             | 1.24344978758018e-14      |
+| `cosh² - sinh²`           | 3.5527136788005e-14      |
+| `sin(asin(A₀)) - A₀`     | 2.64435028742266e-12      |
+| `sinh(asinh(A₀)) - A₀`   | 3.68293473380605e-12     |
+| `tanh(atanh(A₀)) - A₀`   | 8.00355337560177e-11      |
+| `J1(0.5) - reference`     | 6.75015598972095e-14 *    |
 
 \* **Note:** The error of `J1(0.5)` depends strongly on the truncation order `n` used in `poly_bessel_J1(n)`.  
-For `n=8` the error is about `1.32e-9`; for `n=12` it drops to about `6.75e-14`. Use a larger `n` for higher accuracy.
+For `n=8` the error is about `1.3218556804695e-09`; for `n=12` it drops to about `6.75015598972095e-14`. Use a larger `n` for higher accuracy.
 
 The residual error in `tanh(atanh(…))` is dominated by the high coefficient magnitudes of `atanh(A₀)` and the cumulative effect of FFT, Newton iterations, and truncation – a fundamental limit of double‑precision arithmetic.
 
