@@ -9,11 +9,11 @@
 [![Repo size](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
 
-**Related project**: [PolyChain Blockchain Simulator](https://github.com/yuzheng2026/QtWidgetsApplication1)
+**Related project**: [PolyChain](https://github.com/yuzheng2026/PolyChain)
 
-A single‑header, high‑speed polynomial / formal power series library for **x86‑64** with
-**SSE3 / AVX / AVX‑512** and **FMA3** acceleration.
-All operations use FFT‑based convolution and are optimised for **double** precision.
+A high‑speed polynomial / formal power series library for **x86‑64** with **SSE3 / AVX / AVX‑512** and **FMA3** acceleration.  
+All operations use FFT‑based convolution and are optimised for **double** precision.  
+The core logic is header‑only (`poly_avx.hpp`), with an optional runtime CPU dispatcher (`cpu_dispatch.cpp`) for automatic SIMD selection.  
 A Chinese version of this document is available at [README_CN.md](README_CN.md).
 
 ## Features
@@ -58,25 +58,21 @@ A Chinese version of this document is available at [README_CN.md](README_CN.md).
 
 ## Accuracy
 
-All tests pass on **GCC 11+** (test environment) and any **C++98 conformant compiler**
-including older GCC (3.4+), Clang, and MSVC (2005+).  
+All tests pass on **GCC 11+** and any **C++98 conformant compiler** (including older GCC 3.4+, Clang, MSVC 2005+).  
 Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (truncated to 8 terms):
 
 | Identity                  | Error       |
 |---------------------------|-------------|
-| `(1/A) * A`               | ~1.7e-15    |
-| `sqrt(A)² - A`            | ~1.3e-15    |
-| `exp(log(A)) - A`         | ~1.3e-15    |
-| `sin² + cos²`             | ~1.4e-12    |
-| `cosh² - sinh²`           | ~4.9e-13    |
-| `sin(asin(A₀)) - A₀`     | ~7.0e-11    |
-| `sinh(asinh(A₀)) - A₀`   | ~1.3e-10    |
-| `tanh(atanh(A₀)) - A₀`   | ~1.2e-09    |
+| `(1/A) * A`               | ~4e-15      |
+| `sqrt(A)² - A`            | ~9e-16      |
+| `exp(log(A)) - A`         | ~1.5e-15    |
+| `sin² + cos²`             | ~1.2e-14    |
+| `cosh² - sinh²`           | ~3.6e-14    |
+| `sin(asin(A₀)) - A₀`     | ~2.6e-12    |
+| `sinh(asinh(A₀)) - A₀`   | ~3.7e-12    |
+| `tanh(atanh(A₀)) - A₀`   | ~8.0e-11    |
 
-Inverse hyperbolic functions (`asinh`, `acosh`, `atanh`) now use **log1p‑stabilised** formulas
-to avoid catastrophic cancellation near the origin and near unity. The residual error in
-`tanh(atanh(…))` is dominated by the long chain of FFT, Newton iterations, and truncation
-operations – a fundamental limit of double‑precision arithmetic.
+The residual error in `tanh(atanh(…))` is dominated by the high coefficient magnitudes of `atanh(A₀)` and the cumulative effect of FFT, Newton iterations, and truncation – a fundamental limit of double‑precision arithmetic.
 
 ## Requirements
 
@@ -90,29 +86,24 @@ operations – a fundamental limit of double‑precision arithmetic.
 g++ -O3 -march=native -mfma -std=c++98 your_program.cpp cpu_dispatch.cpp -o your_program
 ```
 
-If your CPU doesn’t support FMA, drop `-mfma` – the library falls back to add/sub
-SIMD intrinsics automatically.
+If your CPU doesn’t support FMA, drop `-mfma` – the library falls back to add/sub SIMD intrinsics automatically.  
+If you prefer a **single‑file build** without runtime dispatch, simply omit `cpu_dispatch.cpp` – the library will use compile‑time macro selection instead.
 
 ### Precompiled header (optional)
 
-You can speed up compilation of projects that include `poly_avx.hpp` by generating a
-**precompiled header** (`.gch`). Use the **exact same compiler options** as when
-building your program:
+You can speed up compilation of projects that include `poly_avx.hpp` by generating a **precompiled header** (`.gch`). Use the **exact same compiler options** as when building your program:
 
 ```bash
 g++ -O3 -march=native -mfma -std=c++98 poly_avx.hpp -o poly_avx.hpp.gch
 ```
 
-Place the resulting `poly_avx.hpp.gch` in the same directory as `poly_avx.hpp`.
+Place the resulting `poly_avx.hpp.gch` in the same directory as `poly_avx.hpp`.  
 GCC will automatically use it if the compile flags match.  
-**Note:** Do **not** commit the `.gch` file to version control – it is compiler‑specific
-and can be regenerated on demand. Add `*.gch` to your `.gitignore`.
+**Note:** Do **not** commit the `.gch` file to version control – it is compiler‑specific and can be regenerated on demand. Add `*.gch` to your `.gitignore`.
 
 ## Runtime CPU dispatch
 
-PolyAVX automatically detects the SIMD capabilities of your CPU at startup and selects
-the fastest available implementation of the core complex‑multiplication routine. The
-same binary runs optimally on all x86‑64 processors – no recompilation needed.
+PolyAVX automatically detects the SIMD capabilities of your CPU at startup and selects the fastest available implementation of the core complex‑multiplication routine. The same binary runs optimally on all x86‑64 processors – no recompilation needed.
 
 **Supported paths (in priority order):**
 1. **AVX‑512F** (if compiled with `-mavx512f` and supported by the CPU)
@@ -121,25 +112,8 @@ same binary runs optimally on all x86‑64 processors – no recompilation neede
 
 **How it works:**
 - Detection uses GCC/Clang's built‑in `__builtin_cpu_supports` function, called once at startup.
-- The global function pointer `pointwise_mul` is set to `pointwise_mul_avx512`,
-  `pointwise_mul_avx`, or `pointwise_mul_sse3` accordingly.
-- All dispatch logic lives in `cpu_dispatch.cpp` and is initialised before `main()` via a
-  global constructor – completely transparent to users.
-
-**Compilation with dispatch:**
-
-```bash
-g++ -O3 -march=native -mfma -std=c++98 your_program.cpp cpu_dispatch.cpp -o your_program
-```
-
-The `-march=native` flag allows the compiler to generate AVX/AVX‑512 code for your
-current CPU; the runtime dispatcher ensures that the resulting binary safely falls
-back to SSE3 on older hardware.
-
-If you prefer a **static, single‑file build** (no dispatch), simply omit `cpu_dispatch.cpp`
-from the command line – the library then reverts to compile‑time macro selection.
-You can also merge `cpu_dispatch.cpp` back into `poly_avx.hpp` to restore a true
-single‑header library.
+- The global function pointer `pointwise_mul` is set to `pointwise_mul_avx512`, `pointwise_mul_avx`, or `pointwise_mul_sse3` accordingly.
+- All dispatch logic lives in `cpu_dispatch.cpp` and is initialised before `main()` via a global constructor – completely transparent to users.
 
 ## Quick example
 
@@ -172,11 +146,10 @@ int main() {
     return 0;
 }
 ```
+
 ## Benchmark
 
-A self‑contained benchmark suite (`bench_basic.cpp`) measures the throughput of all
-core operations. It executes each function several thousand times and reports the
-total wall‑clock time, making it easy to track performance changes across commits.
+A self‑contained benchmark suite (`bench_basic.cpp`) measures the throughput of all core operations. It executes each function several thousand times and reports the total wall‑clock time, making it easy to track performance changes across commits.
 
 To build and run the benchmark:
 
@@ -184,47 +157,29 @@ To build and run the benchmark:
 g++ -O3 -march=native -mfma -std=c++98 bench_basic.cpp cpu_dispatch.cpp -o bench_basic
 ./bench_basic
 ```
-The output lists 33 operations (algebra, calculus, power series, trigonometric,
-hyperbolic, and extended functions) with per‑function timings. The CI pipeline
-automatically runs this benchmark on every push and pull request.
+
+The output lists 33 operations (algebra, calculus, power series, trigonometric, hyperbolic, and extended functions) with per‑function timings. The CI pipeline automatically runs this benchmark on every push and pull request.
+
 ## Acknowledgements
 
-This library was created through an extensive collaboration between the author
-and **DeepSeek AI**. The AI provided initial code drafts, algorithms explanations,
-and debugging assistance; the author performed rigorous testing, optimisation,
-and finalisation of every feature.
+This library was created through an extensive collaboration between the author and **DeepSeek AI**. The AI provided initial code drafts, algorithms explanations, and debugging assistance; the author performed rigorous testing, optimisation, and finalisation of every feature.
 
-**Special thanks** to ExplodingKonjac for the original libcp library,
-which inspired this project. PolyAVX extends the concept with AVX‑512 support,
-additional functions, and a self‑contained C++98 single‑header implementation.
-The original library is licensed under GPLv3. PolyAVX is an independent
-re‑implementation inspired by it, licensed under GPLv3 to stay true to the same spirit.
+**Special thanks** to ExplodingKonjac for the original libcp library, which inspired this project. PolyAVX extends the concept with AVX‑512 support, additional functions, and a self‑contained C++98 single‑header implementation. The original library is licensed under GPLv3. PolyAVX is an independent re‑implementation inspired by it, licensed under GPLv3 to stay true to the same spirit.
 
 ## Contributing
 
-Contributions are warmly welcomed! If you're interested in pushing PolyAVX
-even closer to the metal, here are some concrete directions:
+Contributions are warmly welcomed! If you're interested in pushing PolyAVX even closer to the metal, here are some concrete directions:
 
-- **C API** (`extern "C"` wrappers around core functions) – enables linking from
-  C, Python, Rust, etc.
-- **Hand‑tuned assembly / intrinsics** for FFT butterflies or complex multiply
-  (especially for Zen 4, Golden Cove, Xeon series, etc.).
-- **Non‑STL memory backend** – replace `std::vector` with a custom allocator so
-  the library can be used in kernel / embedded contexts.
-- **Runtime CPU dispatch** – detect AVX‑512 / FMA at runtime and select the best
-  implementation without recompiling. *(Already implemented — improvements welcome!)*
-- **Benchmarks and CI** – a reproducible benchmark suite that tracks performance
-  improvements.
+- **C API** (`extern "C"` wrappers around core functions) – enables linking from C, Python, Rust, etc.
+- **Hand‑tuned assembly / intrinsics** for FFT butterflies or complex multiply (especially for Zen 4, Golden Cove, Xeon series, etc.).
+- **Non‑STL memory backend** – replace `std::vector` with a custom allocator so the library can be used in kernel / embedded contexts.
+- **Runtime CPU dispatch** – improve detection logic or add support for more architectures.
+- **Benchmarks and CI** – extend the benchmark suite and CI pipeline to cover more edge cases.
 
-If you plan to work on these, please open an issue first so we can discuss the
-best approach. The main logic resides in `poly_avx.hpp`; functions like
-`pointwise_mul`, `fft`, `convolution`, and `Poly::log` / `Poly::exp` are the
-most performance‑critical.
+If you plan to work on these, please open an issue first so we can discuss the best approach. The main logic resides in `poly_avx.hpp`; functions like `pointwise_mul`, `fft`, `convolution`, and `Poly::log` / `Poly::exp` are the most performance‑critical.
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0 (GPLv3)**
-or (at your option) any later version.
-See the [LICENSE](LICENSE) file for the full text.
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)** or (at your option) any later version. See the [LICENSE](LICENSE) file for the full text.
 
 © 2026 yuzheng2026. Licensed under GPLv3.
