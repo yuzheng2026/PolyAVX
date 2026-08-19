@@ -61,20 +61,20 @@ A Chinese version of this document is available at [README_CN.md](README_CN.md).
 All tests pass on **GCC 11+** and any **C++98 conformant compiler** (including older GCC 3.4+, Clang, MSVC 2005+).  
 Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (truncated to 8 terms):
 
-| Identity                  | Error       |
-|---------------------------|-------------|
-| `(1/A) * A`               | ~4e-15      |
-| `sqrt(A)² - A`            | ~9e-16      |
-| `exp(log(A)) - A`         | ~1.5e-15    |
-| `sin² + cos²`             | ~1.2e-14    |
-| `cosh² - sinh²`           | ~3.6e-14    |
-| `sin(asin(A₀)) - A₀`     | ~2.6e-12    |
-| `sinh(asinh(A₀)) - A₀`   | ~3.7e-12    |
-| `tanh(atanh(A₀)) - A₀`   | ~8.0e-11    |
-| `J1(0.5) - reference`     | ~6.8e-14 *  |
+| Identity                  | Error         |
+|---------------------------|---------------|
+| `(1/A) * A`               | 4.03e-15      |
+| `sqrt(A)² - A`            | 8.88e-16      |
+| `exp(log(A)) - A`         | 1.67e-15      |
+| `sin² + cos²`             | 1.24e-14      |
+| `cosh² - sinh²`           | 3.55e-14      |
+| `sin(asin(A₀)) - A₀`     | 2.64e-12      |
+| `sinh(asinh(A₀)) - A₀`   | 3.68e-12      |
+| `tanh(atanh(A₀)) - A₀`   | 8.00e-11      |
+| `J1(0.5) - reference`     | 6.75e-14 *    |
 
 \* **Note:** The error of `J1(0.5)` depends strongly on the truncation order `n` used in `poly_bessel_J1(n)`.  
-For `n=8` the error is about `1.3e-9`; for `n=12` it drops to about `6.8e-14`. Use a larger `n` for higher accuracy.
+For `n=8` the error is about `1.32e-9`; for `n=12` it drops to about `6.75e-14`. Use a larger `n` for higher accuracy.
 
 The residual error in `tanh(atanh(…))` is dominated by the high coefficient magnitudes of `atanh(A₀)` and the cumulative effect of FFT, Newton iterations, and truncation – a fundamental limit of double‑precision arithmetic.
 
