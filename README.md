@@ -71,6 +71,10 @@ Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (trunc
 | `sin(asin(A₀)) - A₀`     | ~2.6e-12    |
 | `sinh(asinh(A₀)) - A₀`   | ~3.7e-12    |
 | `tanh(atanh(A₀)) - A₀`   | ~8.0e-11    |
+| `J1(0.5) - reference`     | ~6.8e-14 *  |
+
+\* **Note:** The error of `J1(0.5)` depends strongly on the truncation order `n` used in `poly_bessel_J1(n)`.  
+For `n=8` the error is about `1.3e-9`; for `n=12` it drops to about `6.8e-14`. Use a larger `n` for higher accuracy.
 
 The residual error in `tanh(atanh(…))` is dominated by the high coefficient magnitudes of `atanh(A₀)` and the cumulative effect of FFT, Newton iterations, and truncation – a fundamental limit of double‑precision arithmetic.
 
