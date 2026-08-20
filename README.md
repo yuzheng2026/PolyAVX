@@ -72,13 +72,15 @@ Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (trunc
 | `sin(asin(A0)) - A0` | 2.60902410786912e-15 | ~1e-12 |
 | `sinh(asinh(A0)) - A0` | 3.37507799486048e-14 | ~1e-13 |
 | `tanh(atanh(A0)) - A0` | 1.13686837721616e-13 | ~1e-13 |
-| `J1(0.5) - reference` | 6.75015598972095e-14 | ~1e-15* |
+| `J1(0.5) - reference` | 6.75015598972095e-14* | ~1e-15* |
 | Interpolation max error | **0** | <1e-15 |
 | Composite error (A(B(x)) with B=x) | **0** | 0 |
 | Reversion of x | expected 0 1 0 0 0 | passed |
 | `erf(0)` | **0** | near 0 |
 
-\* The error of `J1(0.5)` depends on the truncation order used in `poly_bessel_J1(n)`. With `n=12`, it is about `6.75015598972095e-14`; with `n=8`, it would be around `1.3218556804695e-09`.
+**Note:** The error of J1(0.5) is closely related to the truncation order n used in poly_bessel_J1(n).
+For n=8, the error is approximately 1.3218556804695e-09; for n=12, it drops to approximately 6.75015598972095e-14.
+Increase n for higher accuracy if needed.
 
 All identity errors are at or near the limits of double-precision floating-point arithmetic.
 
