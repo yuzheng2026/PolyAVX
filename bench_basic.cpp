@@ -94,7 +94,7 @@ void bench_erf() {
     volatile double d = r[0]; (void)d;
 }
 
-void bench_bessel() {
+void bench_bessel_J0() {
     PolyD r = poly_bessel_J0(6);
     volatile double d = r[0]; (void)d;
 }
@@ -112,6 +112,31 @@ void bench_eval() {
     std::vector<double> pts; pts.push_back(0.0); pts.push_back(1.0); pts.push_back(2.0);
     std::vector<double> vals = multipoint_eval_naive(P, pts);
     volatile double d = vals[0]; (void)d;
+}
+
+// ---- 补充：特殊函数 ----
+void bench_erf_series() {
+    PolyD r = poly_erf(8);               // 直接生成 erf 级数
+    volatile double d = r[0]; (void)d;
+}
+
+void bench_erfc() {
+    PolyD r = poly_erfc(8);              // 生成 erfc 级数
+    volatile double d = r[0]; (void)d;
+}
+
+void bench_bessel_J1() {
+    PolyD r = poly_bessel_J1(8);         // 生成 J1 级数
+    volatile double d = r[0]; (void)d;
+}
+
+void bench_log1p() {
+    PolyD A0;                            // 常数项为 0
+    A0.data.push_back(0.0);
+    A0.data.push_back(3.0);
+    A0.data.push_back(1.0);
+    PolyD r = poly_log1p(A0, 8);         // log(1 + A0)
+    volatile double d = r[0]; (void)d;
 }
 
 int main() {
@@ -149,10 +174,14 @@ int main() {
     bench("composite", bench_composite);
     bench("reversion", bench_reversion);
     bench("erf      ", bench_erf);
-    bench("bessel   ", bench_bessel);
+    bench("besselJ0 ", bench_bessel_J0);        // 原有 J0
+    bench("besselJ1 ", bench_bessel_J1);     // 新增 J1
     bench("interpol ", bench_interpolate);
     bench("eval     ", bench_eval);
-
+    bench("erf_series", bench_erf_series);
+    bench("erfc     ", bench_erfc);
+    bench("log1p    ", bench_log1p);
+    
     std::cout << "\nDone.\n";
     return 0;
 }
