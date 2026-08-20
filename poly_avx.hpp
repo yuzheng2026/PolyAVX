@@ -391,7 +391,7 @@ namespace poly_avx {
 	}
 	
 // ---------- 反三角函数 ----------
-// 前向声明（若 poly_composite 定义在后面）
+// 前向声明（若 poly_composite 定义在后方）
 	inline PolyD poly_composite(const PolyD& A, const PolyD& B, int n);
 	
 // 构造 asin 的泰勒级数（系数硬编码，可按需扩展）
@@ -407,12 +407,22 @@ namespace poly_avx {
 		return PolyD(c);
 	}
 	
-// 纯级数复合，无牛顿校正
+// 级数复合 + 一次牛顿校正
 	inline PolyD poly_asin(const PolyD& A, int n) {
 		assert(A.data.empty() || std::abs(A[0]) < EPS);
+		// 1. 纯级数复合得到初值
 		PolyD series = asin_series(n);
 		PolyD res = poly_composite(series, A, n);
-		if (!res.data.empty()) res.data[0] = 0.0;   // 强制常数项为 0
+		if (!res.data.empty()) res.data[0] = 0.0;   // 常数项严格为 0
+		
+		// 2. 一次牛顿校正：res = res - (sin(res) - A) * inv(cos(res))
+		PolyD sin_res = poly_sin(res, n);
+		PolyD cos_res = poly_cos(res, n);
+		PolyD diff = (sin_res - A).trunc(n);
+		PolyD inv_cos = cos_res.inv(n);
+		res = (res - diff * inv_cos).trunc(n);
+		if (!res.data.empty()) res.data[0] = 0.0;   // 再次清零常数项
+		
 		return res;
 	}
 	inline PolyD poly_acos(const PolyD& A, int n) {
