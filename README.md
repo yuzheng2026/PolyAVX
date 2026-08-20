@@ -62,22 +62,25 @@ A Chinese version of this document is available at [README_CN.md](README_CN.md).
 All tests pass on **GCC 11+** and any **C++98 conformant compiler** (including older GCC 3.4+, Clang, MSVC 2005+).  
 Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (truncated to 8 terms):
 
-| Identity                  | Error         |
-|---------------------------|---------------|
-| `(1/A) * A`               | 4.03258274671028e-15      |
-| `sqrt(A)² - A`            | 8.88178419700125e-16      |
-| `exp(log(A)) - A`         | 1.67322464904201e-15      |
-| `sin² + cos²`             | 1.24344978758018e-14      |
-| `cosh² - sinh²`           | 3.5527136788005e-14      |
-| `sin(asin(A₀)) - A₀`     | 2.64435028742266e-12      |
-| `sinh(asinh(A₀)) - A₀`   | 3.68293473380605e-12     |
-| `tanh(atanh(A₀)) - A₀`   | 8.00355337560177e-11      |
-| `J1(0.5) - reference`     | 6.75015598972095e-14 *    |
+| Identity / Check | Measured Error | Ideal / Expected |
+|---|---|---|
+| `(1/A)*A - 1` | **0** | ~1e-15 |
+| `sqrt(A)^2 - A` | 4.44089209850063e-16 | ~1e-15 |
+| `exp(log(A)) - A` | 1.4658413372004e-16 | ~1e-15 |
+| `sin² + cos² - 1` | **0** | ~1e-14 |
+| `cosh² - sinh² - 1` | 1.4210854715202e-14 | ~1e-14 |
+| `sin(asin(A0)) - A0` | 2.60902410786912e-15 | ~1e-12 |
+| `sinh(asinh(A0)) - A0` | 3.37507799486048e-14 | ~1e-13 |
+| `tanh(atanh(A0)) - A0` | 1.13686837721616e-13 | ~1e-13 |
+| `J1(0.5) - reference` | 6.75015598972095e-14 | ~1e-15* |
+| Interpolation max error | **0** | <1e-15 |
+| Composite error (A(B(x)) with B=x) | **0** | 0 |
+| Reversion of x | expected 0 1 0 0 0 | passed |
+| `erf(0)` | **0** | near 0 |
 
-\* **Note:** The error of `J1(0.5)` depends strongly on the truncation order `n` used in `poly_bessel_J1(n)`.  
-For `n=8` the error is about `1.3218556804695e-09`; for `n=12` it drops to about `6.75015598972095e-14`. Use a larger `n` for higher accuracy.
+\* The error of `J1(0.5)` depends on the truncation order used in `poly_bessel_J1(n)`. With `n=12`, it is about `6.75015598972095e-14`; with `n=8`, it would be around `1.3218556804695e-09`.
 
-The residual error in `tanh(atanh(…))` is dominated by the high coefficient magnitudes of `atanh(A₀)` and the cumulative effect of FFT, Newton iterations, and truncation – a fundamental limit of double‑precision arithmetic.
+All identity errors are at or near the limits of double-precision floating-point arithmetic.
 
 ## Requirements
 
