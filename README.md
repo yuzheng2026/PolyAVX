@@ -86,7 +86,7 @@ All identity errors are at or near the limits of double-precision floating-point
 
 ## Performance
 
-Measured on a typical x86-64 system with GCC, `-O3 -march=native -mfma`, and polynomial truncation length `n=8`  
+Measured on a Windows system with GCC, `-O3 -march=native -mfma`, and polynomial truncation length `n=8`  
 (10000 repetitions, time per call):
 
 | Function | Time per call (µs) |
