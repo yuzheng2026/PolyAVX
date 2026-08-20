@@ -8,7 +8,7 @@
 [![Top language](https://img.shields.io/github/languages/top/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![Repo size](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
-**Note:** PolyAVX is a collection of polynomial utilities
+**Note:** PolyAVX is a collection of polynomial utilities and optimized with SIMD (SSE3/AVX/AVX-512).
 
 **Related project**: [PolyChain](https://github.com/yuzheng2026/PolyChain)
 
