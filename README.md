@@ -133,6 +133,7 @@ Measured on a typical x86-64 system with GCC, `-O3 -march=native -mfma`, and pol
 Values marked `< 0.1` are extremely fast (below the measurement resolution of this benchmark).  
 Performance is heavily optimized for small polynomial sizes (`n ≤ 64`) using naive convolution and recurrence relations, avoiding FFT and Newton iteration overhead when not needed.
 
+**Note:** My CPU supports SSE2 / SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX / AVX2 / FMA3.
 ## Requirements
 
 - **x86‑64 CPU** with at least SSE3 (virtually all modern CPUs).
