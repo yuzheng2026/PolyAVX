@@ -86,32 +86,52 @@ All identity errors are at or near the limits of double-precision floating-point
 
 ## Performance
 
-Measured on a typical x86-64 system with **GCC**, `-O3 -march=native -mfma`, and `n=8`  
+Measured on a typical x86-64 system with GCC, `-O3 -march=native -mfma`, and polynomial truncation length `n=8`  
 (10000 repetitions, time per call):
 
 | Function | Time per call (µs) |
 |----------|--------------------|
 | `A + B` | < 0.1 |
-| `A * B` | 0.3 |
+| `A - B` | < 0.1 |
+| `A * B` | 0.2 |
+| `A / B` | 0.7 |
+| `A % B` | 0.8 |
+| `A * 2.5` | < 0.1 |
+| `B / 2.0` | < 0.1 |
+| `deriv` | 0.2 |
+| `integ` | < 0.1 |
 | `inv` | < 0.1 |
-| `log` | 3.0 |
-| `exp` | 9.6 |
+| `log` | 0.8 |
+| `exp` | 3.3 |
 | `sqrt` | < 0.1 |
-| `sin` | 22.3 |
-| `cos` | 22.3 |
-| `tan` | 23.9 |
-| `asin` | 38.2 |
-| `acos` | 38.1 |
-| `atan` | 1.8 |
-| `sinh` | 36.4 |
-| `cosh` | 36.7 |
-| `tanh` | 38.3 |
-| `asinh` | 3.1 |
-| `acosh` | 6.3 |
-| `atanh` | 3.2 |
+| `pow(int)` | 2.0 |
+| `pow(real)` | 2.7 |
+| `sin` | 5.5 |
+| `cos` | 5.5 |
+| `tan` | 4.7 |
+| `asin` | 7.9 |
+| `acos` | 6.9 |
+| `atan` | 1.1 |
+| `sinh` | 9.5 |
+| `cosh` | 9.4 |
+| `tanh` | 9.6 |
+| `asinh` | 0.2 |
+| `acosh` | 3.0 |
+| `atanh` | < 0.1 |
+| `shift` | 1.5 |
+| `composite` | 1.6 |
+| `reversion` | 8.5 |
+| `erf` | 1.0 |
+| `besselJ0` | < 0.1 |
+| `besselJ1` | < 0.1 |
+| `interpol` | 2.6 |
+| `eval` | 0.3 |
+| `erf_series` | < 0.1 |
+| `erfc` | < 0.1 |
+| `log1p` | < 0.1 |
 
 Values marked `< 0.1` are extremely fast (below the measurement resolution of this benchmark).  
-The performance is optimized for small polynomial sizes (`n ≤ 64`) via naive convolution and recurrence relations, avoiding FFT and Newton iteration overhead when they are not needed.
+Performance is heavily optimized for small polynomial sizes (`n ≤ 64`) using naive convolution and recurrence relations, avoiding FFT and Newton iteration overhead when not needed.
 
 ## Requirements
 
