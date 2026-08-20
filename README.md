@@ -84,6 +84,35 @@ Increase n for higher accuracy if needed.
 
 All identity errors are at or near the limits of double-precision floating-point arithmetic.
 
+## Performance
+
+Measured on a typical x86-64 system with **GCC**, `-O3 -march=native -mfma`, and `n=8`  
+(10000 repetitions, time per call):
+
+| Function | Time per call (µs) |
+|----------|--------------------|
+| `A + B` | < 0.1 |
+| `A * B` | 0.3 |
+| `inv` | < 0.1 |
+| `log` | 3.0 |
+| `exp` | 9.6 |
+| `sqrt` | < 0.1 |
+| `sin` | 22.3 |
+| `cos` | 22.3 |
+| `tan` | 23.9 |
+| `asin` | 38.2 |
+| `acos` | 38.1 |
+| `atan` | 1.8 |
+| `sinh` | 36.4 |
+| `cosh` | 36.7 |
+| `tanh` | 38.3 |
+| `asinh` | 3.1 |
+| `acosh` | 6.3 |
+| `atanh` | 3.2 |
+
+Values marked `< 0.1` are extremely fast (below the measurement resolution of this benchmark).  
+The performance is optimized for small polynomial sizes (`n ≤ 64`) via naive convolution and recurrence relations, avoiding FFT and Newton iteration overhead when they are not needed.
+
 ## Requirements
 
 - **x86‑64 CPU** with at least SSE3 (virtually all modern CPUs).
