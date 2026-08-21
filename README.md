@@ -91,7 +91,7 @@ Measured on Windows with MinGW-w64 GCC, `-O3 -march=native -mfma`, and polynomia
 
 | Function | Time per call (µs) |
 |----------|--------------------|
-| `A + B` | 0.1 |
+| `A + B` | < 0.1 |
 | `A - B` | < 0.1 |
 | `A * B` | < 0.1 |
 | `A / B` | < 0.1 |
