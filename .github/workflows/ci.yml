@@ -23,5 +23,5 @@ jobs:
         if [ "${{ matrix.fma }}" = "ON" ]; then
           FMA_FLAG="-mfma"
         fi
-        ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 PolyAVX-AVX_bench_basic.cpp cpu_dispatch.cpp -o PolyAVX-AVX_bench_basic.exe
+        ${{ matrix.compiler }} -O3 -march=native $FMA_FLAG -std=c++98 PolyAVX-AVX_bench_basic.cpp -o PolyAVX-AVX_bench_basic.exe
         ./PolyAVX-AVX_bench_basic.exe
