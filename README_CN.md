@@ -1,4 +1,3 @@
-
 # PolyAVX – 高性能多项式全家桶 (C++98)
 
 [![许可证: GPL v3+](https://img.shields.io/badge/License-GPL%20v3%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -8,13 +7,12 @@
 [![最后提交](https://img.shields.io/github/last-commit/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/commits/main)
 [![主要语言](https://img.shields.io/github/languages/top/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![仓库大小](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
-[![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
 
-**相关项目**: [PolyChain](https://github.com/yuzheng2026/PolyChain)
+**相关项目**: [PolyChain 区块链模拟器](https://github.com/yuzheng2026/PolyChain)
 
 一个用于 **x86‑64** 平台的高性能多项式/形式幂级数库，全面支持 **SSE3 / AVX / AVX‑512** 和 **FMA3** 指令集加速。  
 所有运算均采用基于 FFT 的卷积，并针对 **双精度浮点** 进行深度优化。  
-核心逻辑为头文件形式（`poly_avx.hpp`），可选配运行时 CPU 调度器（`cpu_dispatch.cpp`）自动选择最优 SIMD 实现。  
+该库现已**仅包含单个头文件**（`poly_avx.hpp`），内置运行时 CPU 调度，无需额外 `.cpp` 文件。  
 本文件的英文版本见 [README.md](README.md)。
 
 ## 功能特性
@@ -48,31 +46,35 @@
 ### 扩展运算
 - `poly_shift(A, c, n)` —— 泰勒平移（计算 `A(x+c)`）
 - `multipoint_eval_naive(P, pts)` —— 多点求值（朴素 O(n²)）
+- `multipoint_eval(P, pts)` —— 快速多点求值（分治树实现）
 - `multipoint_interpolate(x, y)` —— 拉格朗日插值（O(n²)）
+- `multipoint_interpolate_fast(x, y)` —— 快速插值（O(n log² n)）
 - `poly_composite(A, B, n)` —— 形式幂级数复合 `A(B(x))`（Brent–Kung 算法）
 - `poly_reversion(F, n)` —— 复合逆（牛顿迭代法）
 - `poly_erf(n)` / `poly_erf(A, n)` —— 误差函数（泰勒级数 / 复合）
+- `poly_erfc(n)` —— 补余误差函数
 - `poly_bessel_J0(n)` —— 第一类零阶贝塞尔函数 J₀
+- `poly_bessel_J1(n)` —— 第一类一阶贝塞尔函数 J₁
 
 ### 输入/输出
 - 重载了 `operator<<` 和 `operator>>`，方便系数的流式输入输出。
 
 ## 精度说明
 
-所有测试均在 **GCC 11+** 及任何 **符合 C++98 标准的编译器**（包括旧版 GCC 3.4+、Clang、MSVC 2005+）上通过。  
-对于测试多项式 `A = 2 + 3x + x²`（截断至 8 项），各项恒等式的无穷范数误差如下：
+所有恒等式误差均已达到或接近双精度浮点运算的极限。  
+对于测试多项式 `A = 2 + 3x + x²`（截断至 8 项），各项结果如下：
 
 | 恒等式 / 验证项目 | 实际误差 | 理想 / 预期 |
 |---|---|---|
 | `(1/A)*A - 1` | **0** | ~1e-15 |
-| `sqrt(A)^2 - A` | 4.44089209850063e-16 | ~1e-15 |
+| `sqrt(A)² - A` | 4.44089209850063e-16 | ~1e-15 |
 | `exp(log(A)) - A` | 1.4658413372004e-16 | ~1e-15 |
 | `sin² + cos² - 1` | **0** | ~1e-14 |
 | `cosh² - sinh² - 1` | 1.4210854715202e-14 | ~1e-14 |
 | `sin(asin(A0)) - A0` | 2.60902410786912e-15 | ~1e-12 |
 | `sinh(asinh(A0)) - A0` | 3.37507799486048e-14 | ~1e-13 |
 | `tanh(atanh(A0)) - A0` | 1.13686837721616e-13 | ~1e-13 |
-| `J1(0.5) - reference` | 6.75015598972095e-14* | ~1e-15* |
+| `J1(0.5) - reference` | 6.75015598972095e-14 * | ~1e-15 * |
 | 插值最大误差 | **0** | <1e-15 |
 | 复合误差 (A(B(x))，B=x) | **0** | 0 |
 | 反函数 reversion of x | 输出 0 1 0 0 0 | 通过 |
@@ -81,58 +83,54 @@
 \* **注：** `J1(0.5)` 的误差与 `poly_bessel_J1(n)` 中的截断项数 `n` 密切相关。  
 当 `n=8` 时误差约为 `1.3218556804695e-09`；当 `n=12` 时降至约 `6.75015598972095e-14`。如需更高精度可增大 `n`。
 
-所有恒等式误差均已达到或接近双精度浮点运算的极限。
-
 ## 性能
 
-测试环境：Windows 系统，GCC 编译器，启用 `-O3 -march=native -mfma`，多项式截断长度 `n=8`  
+测试环境：典型 x86‑64 系统，GCC 编译器，启用 `-O3 -march=native -mfma`，多项式截断长度 `n=8`  
 （10000 次重复，每次调用耗时）：
 
 | 函数 | 每次调用耗时 (µs) |
 |------|--------------------|
 | `A + B` | < 0.1 |
 | `A - B` | < 0.1 |
-| `A * B` | 0.2 |
-| `A / B` | 0.7 |
-| `A % B` | 0.8 |
+| `A * B` | < 0.1 |
+| `A / B` | 2.2 |
+| `A % B` | 0.9 |
 | `A * 2.5` | < 0.1 |
 | `B / 2.0` | < 0.1 |
-| `deriv` | 0.2 |
+| `deriv` | < 0.1 |
 | `integ` | < 0.1 |
 | `inv` | < 0.1 |
-| `log` | 0.8 |
-| `exp` | 3.3 |
+| `log` | 1.6 |
+| `exp` | 5.2 |
 | `sqrt` | < 0.1 |
-| `pow(int)` | 2.0 |
-| `pow(real)` | 2.7 |
-| `sin` | 5.5 |
-| `cos` | 5.5 |
-| `tan` | 4.7 |
-| `asin` | 7.9 |
-| `acos` | 6.9 |
-| `atan` | 1.1 |
-| `sinh` | 9.5 |
-| `cosh` | 9.4 |
-| `tanh` | 9.6 |
-| `asinh` | 0.2 |
-| `acosh` | 3.0 |
+| `pow(int)` | 1.2 |
+| `pow(real)` | 5.3 |
+| `sin` | 5.8 |
+| `cos` | 4.8 |
+| `tan` | 6.4 |
+| `asin` | 8.0 |
+| `acos` | 7.3 |
+| `atan` | 0.4 |
+| `sinh` | 9.6 |
+| `cosh` | 7.9 |
+| `tanh` | 9.5 |
+| `asinh` | < 0.1 |
+| `acosh` | 1.6 |
 | `atanh` | < 0.1 |
-| `shift` | 1.5 |
+| `shift` | < 0.1 |
 | `composite` | 1.6 |
-| `reversion` | 8.5 |
-| `erf` | 1.0 |
+| `reversion` | 8.6 |
+| `erf` | 2.6 |
 | `besselJ0` | < 0.1 |
 | `besselJ1` | < 0.1 |
-| `interpol` | 2.6 |
-| `eval` | 0.3 |
+| `interpol` | 3.0 |
+| `eval` | < 0.1 |
 | `erf_series` | < 0.1 |
-| `erfc` | < 0.1 |
-| `log1p` | < 0.1 |
+| `erfc` | 1.0 |
+| `log1p` | 0.5 |
 
 表中 `< 0.1` 表示该运算极快，低于本基准测试的计时分辨率。  
 性能针对小规模多项式（`n ≤ 64`）做了专门优化，采用朴素卷积和递推公式，避免不必要的 FFT 和牛顿迭代开销。
-
-**注:** 我的 CPU 支持 SSE2 / SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX / AVX2 / FMA3
 
 ## 编译要求
 
@@ -142,14 +140,16 @@
 
 ## 编译方法
 
+由于 PolyAVX 已是单头文件库，只需包含 `poly_avx.hpp` 即可：
+
 ```bash
-g++ -O3 -march=native -mfma -std=c++98 your_program.cpp cpu_dispatch.cpp -o your_program
+g++ -O3 -march=native -mfma -std=c++98 your_program.cpp -o your_program
 ```
 
 若你的 CPU 不支持 FMA3，去掉 `-mfma` 即可——库会自动回退到加/减 SIMD 指令。  
-如果你希望 **单文件构建**（不使用运行时调度），只需从命令行中省略 `cpu_dispatch.cpp`——库将退回到编译期宏选择。
+无需链接额外的 `.cpp` 文件或预编译头。
 
-## 预编译头文件（可选）
+### 预编译头文件（可选）
 
 你可以通过生成预编译头文件（`.gch`）来加速包含 `poly_avx.hpp` 的项目的编译过程。请使用与编译程序完全相同的选项来生成预编译头：
 
@@ -172,7 +172,7 @@ PolyAVX 在启动时自动检测 CPU 的 SIMD 能力，并选择最快的复数�
 **工作原理：**
 - 使用 GCC/Clang 内建的 `__builtin_cpu_supports` 函数在启动时检测。
 - 全局函数指针 `pointwise_mul` 被设置为 `pointwise_mul_avx512`、`pointwise_mul_avx` 或 `pointwise_mul_sse3`。
-- 所有调度逻辑位于 `cpu_dispatch.cpp`，在 `main()` 之前通过全局构造函数完成初始化，对用户完全透明。
+- 所有调度逻辑现已直接嵌入 `poly_avx.hpp`，无需外部文件。
 
 ## 快速示例
 
@@ -208,16 +208,16 @@ int main() {
 
 ## 基准测试
 
-内置基准测试套件（`bench_basic.cpp`）测量所有核心运算的吞吐量。每个函数执行数千次并报告总耗时，便于追踪每次提交带来的性能变化。
+仓库内提供了一个一体化的精度验证与性能基准程序（`PolyAVX-AVX_bench_basic.cpp`）。它同时运行完整的精度测试和性能基准。
 
-构建并运行基准测试：
+构建并运行：
 
 ```bash
-g++ -O3 -march=native -mfma -std=c++98 bench_basic.cpp cpu_dispatch.cpp -o bench_basic
-./bench_basic
+g++ -O3 -march=native -mfma -std=c++98 PolyAVX-AVX_bench_basic.cpp -o PolyAVX-AVX_bench_basic
+./PolyAVX-AVX_bench_basic
 ```
 
-输出包含 33 项操作（代数、微积分、幂级数、三角函数、双曲函数及扩展功能）的逐项计时。CI 流水线会在每次推送和拉取请求时自动运行该基准测试。
+输出会列出 33 项操作的计时，并验证关键多项式恒等式。CI 流水线可在每次推送和拉取请求时自动运行该程序。
 
 ## 致谢
 
