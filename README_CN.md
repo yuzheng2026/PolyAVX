@@ -154,7 +154,7 @@
 
 ### PolyI 性能（NTT）
 
-测试环境相同（`-O3 -march=native -mfma`，`N` 为多项式长度）：
+在 Windows 中测试（`-O3 -march=native -mfma`，`N` 为多项式长度）：
 
 | 操作 | 每次调用耗时 |
 |---|---|
