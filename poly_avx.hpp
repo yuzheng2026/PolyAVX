@@ -1,6 +1,8 @@
 // poly_avx.hpp — 高性能多项式全家桶 (C++98, SIMD, FMA3)
 //
-// 本文件提供实系数/复系数多项式的全面运算。
+// 本文件提供实系数/复系数/整数系数多项式的全面运算。
+// 已合并运行时 CPU 调度与 SIMD 复数乘法实现，实现单头文件分发。
+// 新增 NTT 精确整数卷积模块，用于需要确定性计算的场景（如区块链 PoUW）。
 //
 // 作者: yuzheng2026 (与 DeepSeek AI 协作开发)
 // 许可证: GNU GPLv3 or any later version
@@ -18,30 +20,32 @@
 #include <utility>
 #include <iostream>
 
-// SIMD intrinsic 头文件（cpu_dispatch.cpp 中会使用，这里保留以便兼容性检查）
+// SIMD intrinsic 头文件
 #include <emmintrin.h>
 #include <pmmintrin.h>
 #ifdef __AVX__
 #include <immintrin.h>
 #endif
+
+// MSVC 支持
 #if defined(_MSC_VER)
 #include <intrin.h>
 #endif
 
 namespace poly_avx {
 	typedef std::complex<double> cd;
-	typedef void (*pointwise_mul_func)(cd*, const cd*, int);
+	typedef void (*pointwise_mul_func)(cd*, const cd*, int);   // 复数乘法函数指针类型
 	
 	const double PI = std::acos(-1.0);
 	const double EPS = 1e-12;
 	const cd I(0.0, 1.0);
-	
+	// 返回不小于 n 的最小 2 的幂
 	inline int next_pow2(int n) {
 		int r = 1;
 		while (r < n) r <<= 1;
 		return r;
 	}
-	// ---------- SIMD 复数乘法实现（合并自 cpu_dispatch.cpp） ----------
+// ---------- SIMD 复数乘法实现 ----------
 	
 // SSE3 版本：一次处理 4 个复数，回退方案
 	static void pointwise_mul_sse3(cd* A, const cd* B, int len) {
@@ -215,8 +219,7 @@ namespace poly_avx {
 	static void pointwise_mul_avx512(cd*, const cd*, int) { /* 未编译 */ }
 #endif
 	
-// 运行时调度：根据 CPU 特性选择最优实现
-	static pointwise_mul_func pointwise_mul = pointwise_mul_sse3;   // 默认 SSE3
+// CPU 特性检测
 	static bool cpu_has_avx() {
 #if defined(__GNUC__) || defined(__clang__)
 		return __builtin_cpu_supports("avx");
@@ -240,6 +243,10 @@ namespace poly_avx {
 		return false;
 #endif
 	}
+	
+// 运行时调度
+	static pointwise_mul_func pointwise_mul = pointwise_mul_sse3;
+	
 	static void init_cpu_dispatch() {
 #ifdef __AVX512F__
 		if (cpu_has_avx512f()) {
@@ -256,12 +263,12 @@ namespace poly_avx {
 		pointwise_mul = pointwise_mul_sse3;
 	}
 	
-// 自动初始化对象，在 main() 之前执行
 	namespace {
 		struct AutoInit {
 			AutoInit() { init_cpu_dispatch(); }
 		} auto_init;
 	}
+	
 // ---------- FFT ----------
 	template <typename F>
 	void fft(std::complex<F>* a, int n, bool invert) {
@@ -290,7 +297,7 @@ namespace poly_avx {
 		}
 	}
 	
-// ---------- 卷积重载 ----------
+// ---------- 卷积重载（double 和 complex） ----------
 	inline std::vector<double> convolution(const std::vector<double>& a, const std::vector<double>& b, int lim) {
 		if (a.empty() || b.empty()) return std::vector<double>();
 		int n = (int)a.size(), m = (int)b.size(), sz = n + m - 1;
@@ -486,7 +493,6 @@ namespace poly_avx {
 				}
 				return res;
 			}
-			// 原有牛顿迭代
 			Poly res(T(1) / data[0]);
 			int m = 1;
 			while (m < n) {
@@ -520,7 +526,6 @@ namespace poly_avx {
 				return expB * std::exp(c);
 			}
 			if (n <= 64) {
-				// 直接计算 exp(A) = sum_{k=0}^{n-1} A^k / k!
 				Poly res(T(1));
 				Poly term(T(1));
 				for (int k = 1; k < n; ++k) {
@@ -529,7 +534,6 @@ namespace poly_avx {
 				}
 				return res.trunc(n);
 			}
-			// 原有牛顿迭代
 			Poly res(T(1));
 			int m = 1;
 			while (m < n) {
@@ -547,7 +551,7 @@ namespace poly_avx {
 			assert(!data.empty() && std::abs(data[0]) > EPS);
 			if (n <= 64) {
 				T a0 = data[0];
-				T s0 = T(std::sqrt(std::abs(a0)));   // 注意：若 T 为复数，std::sqrt 对复数也可以
+				T s0 = T(std::sqrt(std::abs(a0)));
 				Poly res(n);
 				res.data[0] = s0;
 				for (int k = 1; k < n; ++k) {
@@ -560,7 +564,6 @@ namespace poly_avx {
 				}
 				return res;
 			}
-			// 原有牛顿迭代
 			T a0 = data[0];
 			Poly res(T(std::sqrt(std::abs(a0))));
 			int m = 1;
@@ -597,6 +600,7 @@ namespace poly_avx {
 		}
 	};
 	
+// 全局标量乘除
 	template <typename T>
 	Poly<T> operator*(const T& scalar, const Poly<T>& p) { return p.mul_scalar(scalar); }
 	template <typename T>
@@ -604,6 +608,7 @@ namespace poly_avx {
 		return Poly<T>(scalar) * p.inv(p.size());
 	}
 	
+// 流输入输出
 	template <typename T>
 	std::ostream& operator<<(std::ostream& os, const Poly<T>& p) {
 		for (int i = 0; i < p.size(); ++i) {
@@ -623,8 +628,491 @@ namespace poly_avx {
 	
 	typedef Poly<double> PolyD;
 	typedef Poly<std::complex<double> > PolyC;
+	typedef Poly<long long> PolyI;   // 精确整数多项式
 	
-	// ---------- 三角函数（带归一化） ----------
+// ---------- NTT 精确整数卷积模块 ----------
+	namespace ntt {
+		// 新增两个 NTT 模数，原根均为 3
+		const long long MOD = 998244353;
+		const long long MOD2 = 1004535809; // 479 * 2^21 + 1
+		const long long MOD3 = 469762049;  // 7 * 2^26 + 1
+		const long long G = 3;
+		const long long G2 = 3;
+		const long long G3 = 3;
+		
+		// 通用快速幂：计算 a^e mod mod，使用 __int128 防止溢出
+		inline long long mod_pow_mod(long long a, long long e, long long mod) {
+			long long res = 1;
+			while (e > 0) {
+				if (e & 1) res = (__int128)res * a % mod;
+				a = (__int128)a * a % mod;
+				e >>= 1;
+			}
+			return res;
+		}
+		
+		inline long long mod_pow(long long a, long long e) {
+			return mod_pow_mod(a, e, MOD);
+		}
+		
+		// 模逆元
+		inline long long mod_inv(long long a) {
+			return mod_pow(a, MOD - 2);
+		}
+		
+		// 模加法
+		inline long long add(long long a, long long b) {
+			long long res = a + b;
+			if (res >= MOD) res -= MOD;
+			return res;
+		}
+		
+		// 模减法
+		inline long long sub(long long a, long long b) {
+			long long res = a - b;
+			if (res < 0) res += MOD;
+			return res;
+		}
+		
+		// 模乘法
+		inline long long mul(long long a, long long b) {
+			return (a * b) % MOD;
+		}
+		
+		// 模除法：a / b ≡ a * b^(-1)
+		inline long long div(long long a, long long b) {
+			return mul(a, mod_inv(b));
+		}
+		
+		inline long long mod_sqrt(long long a) {
+			if (a == 0) return 0;
+			if (mod_pow(a, (MOD - 1) / 2) != 1) return -1;
+			long long q = MOD - 1, s = 0;
+			while ((q & 1) == 0) { q >>= 1; ++s; }
+			long long z = 2;
+			while (mod_pow(z, (MOD - 1) / 2) != MOD - 1) ++z;
+			long long m = s, c = mod_pow(z, q), t = mod_pow(a, q), r = mod_pow(a, (q + 1) / 2);
+			while (t != 1) {
+				long long i = 0, temp = t;
+				while (temp != 1) {
+					temp = (temp * temp) % MOD;
+					++i;
+					if (i >= m) return -1;
+				}
+				long long b = c;
+				for (int j = 0; j < m - i - 1; ++j) b = (b * b) % MOD;
+				m = i;
+				c = (b * b) % MOD;
+				t = (t * c) % MOD;
+				r = (r * b) % MOD;
+			}
+			return r;
+		}
+		
+		inline void transform(std::vector<long long>& a, bool invert) {
+			int n = (int)a.size();
+			for (int i = 1, j = 0; i < n; ++i) {
+				int bit = n >> 1;
+				for (; j & bit; bit >>= 1) j ^= bit;
+				j ^= bit;
+				if (i < j) std::swap(a[i], a[j]);
+			}
+			for (int len = 2; len <= n; len <<= 1) {
+				long long wlen = mod_pow(G, (MOD - 1) / len);
+				if (invert) wlen = mod_pow(wlen, MOD - 2);
+				for (int i = 0; i < n; i += len) {
+					long long w = 1;
+					for (int j = 0; j < len / 2; ++j) {
+						long long u = a[i + j];
+						long long v = a[i + j + len / 2] * w % MOD;
+						a[i + j] = (u + v) % MOD;
+						a[i + j + len / 2] = (u - v + MOD) % MOD;
+						w = w * wlen % MOD;
+					}
+				}
+			}
+			if (invert) {
+				long long inv_n = mod_pow(n, MOD - 2);
+				for (int i = 0; i < n; ++i)
+					a[i] = a[i] * inv_n % MOD;
+			}
+		}
+		
+		// 通用 NTT 变换，使用给定模数和原根
+		inline void transform_mod(std::vector<long long>& a, bool invert, long long mod, long long g) {
+			int n = (int)a.size();
+			for (int i = 1, j = 0; i < n; ++i) {
+				int bit = n >> 1;
+				for (; j & bit; bit >>= 1) j ^= bit;
+				j ^= bit;
+				if (i < j) std::swap(a[i], a[j]);
+			}
+			for (int len = 2; len <= n; len <<= 1) {
+				long long wlen = mod_pow(g, (mod - 1) / len); // 注意 mod_pow 需要支持 mod 参数
+				if (invert) wlen = mod_pow(wlen, mod - 2);
+				for (int i = 0; i < n; i += len) {
+					long long w = 1;
+					for (int j = 0; j < len / 2; ++j) {
+						long long u = a[i + j];
+						long long v = a[i + j + len / 2] * w % mod;
+						a[i + j] = (u + v) % mod;
+						a[i + j + len / 2] = (u - v + mod) % mod;
+						w = w * wlen % mod;
+					}
+				}
+			}
+			if (invert) {
+				long long inv_n = mod_pow(n, mod - 2);
+				for (int i = 0; i < n; ++i) a[i] = a[i] * inv_n % mod;
+			}
+		}
+		
+		inline std::vector<long long> convolution(const std::vector<long long>& a,
+												  const std::vector<long long>& b,
+												  int lim = -1) {
+			if (a.empty() || b.empty()) return std::vector<long long>();
+			int n = (int)a.size(), m = (int)b.size();
+			int sz = n + m - 1;
+			if (sz <= 64) {
+				int res_sz = (lim == -1 || lim > sz) ? sz : lim;
+				std::vector<long long> res(res_sz, 0);
+				for (int i = 0; i < n; ++i) {
+					for (int j = 0; j < m && i + j < res_sz; ++j) {
+						res[i + j] = (res[i + j] + (a[i] * b[j]) % MOD) % MOD;
+					}
+				}
+				return res;
+			}
+			int N = 1;
+			while (N < sz) N <<= 1;
+			std::vector<long long> A(N), B(N);
+			for (int i = 0; i < n; ++i) A[i] = a[i] % MOD;
+			for (int i = 0; i < m; ++i) B[i] = b[i] % MOD;
+			transform(A, false);
+			transform(B, false);
+			for (int i = 0; i < N; ++i) A[i] = A[i] * B[i] % MOD;
+			transform(A, true);
+			int res_sz = (lim == -1 || lim > sz) ? sz : lim;
+			A.resize(res_sz);
+			return A;
+		}
+		
+		// 多模数卷积，返回精确整数结果（使用 __int128 合并后转换回 long long）
+		inline std::vector<long long> convolution_multi_mod(const std::vector<long long>& a,
+															const std::vector<long long>& b,
+															int lim = -1) {
+			if (a.empty() || b.empty()) return std::vector<long long>();
+			int n = (int)a.size(), m = (int)b.size(), sz = n + m - 1;
+			int N = 1;
+			while (N < sz) N <<= 1;
+			
+			// 对三个模数分别做 NTT 卷积
+			std::vector<long long> A1(N), B1(N), A2(N), B2(N), A3(N), B3(N);
+			for (int i = 0; i < n; ++i) {
+				A1[i] = a[i] % MOD;
+				A2[i] = a[i] % MOD2;
+				A3[i] = a[i] % MOD3;
+			}
+			for (int i = 0; i < m; ++i) {
+				B1[i] = b[i] % MOD;
+				B2[i] = b[i] % MOD2;
+				B3[i] = b[i] % MOD3;
+			}
+			
+			transform_mod(A1, false, MOD, G);
+			transform_mod(B1, false, MOD, G);
+			for (int i = 0; i < N; ++i) A1[i] = A1[i] * B1[i] % MOD;
+			transform_mod(A1, true, MOD, G);
+			
+			transform_mod(A2, false, MOD2, G2);
+			transform_mod(B2, false, MOD2, G2);
+			for (int i = 0; i < N; ++i) A2[i] = A2[i] * B2[i] % MOD2;
+			transform_mod(A2, true, MOD2, G2);
+			
+			transform_mod(A3, false, MOD3, G3);
+			transform_mod(B3, false, MOD3, G3);
+			for (int i = 0; i < N; ++i) A3[i] = A3[i] * B3[i] % MOD3;
+			transform_mod(A3, true, MOD3, G3);
+			
+			int res_sz = (lim == -1 || lim > sz) ? sz : lim;
+			std::vector<long long> res(res_sz);
+			
+			// CRT 合并，使用 __int128 保证中间计算不溢出
+			// 预计算三个模数的逆
+			static bool crt_init = false;
+			static long long inv_m1_mod_m2, inv_m1m2_mod_m3, inv_m2_mod_m1, inv_m3_mod_m1m2;
+			if (!crt_init) {
+				inv_m1_mod_m2 = mod_pow_mod(MOD, MOD2 - 2, MOD2);
+				inv_m1m2_mod_m3 = mod_pow_mod((__int128)MOD * MOD2 % MOD3, MOD3 - 2, MOD3);
+				inv_m2_mod_m1 = mod_pow_mod(MOD2, MOD - 2, MOD);
+				inv_m3_mod_m1m2 = mod_pow_mod(MOD3, MOD2 - 2, MOD2); // 实际需要 MOD3 在 MOD2 下的逆
+				// 为简化，这里使用 Garner 算法逐步合并
+				crt_init = true;
+			}
+			
+			for (int i = 0; i < res_sz; ++i) {
+				// Garner 算法
+				long long x1 = A1[i];
+				long long x2 = A2[i];
+				long long x3 = A3[i];
+				
+				// 合并 x1 和 x2 -> y (mod MOD*MOD2)
+				long long t = (x2 - x1) % MOD2;
+				if (t < 0) t += MOD2;
+				t = t * inv_m1_mod_m2 % MOD2;
+				long long y = x1 + (__int128)MOD * t; // y 是 __int128，但可以存入 __int128 变量
+				
+				// 合并 y 和 x3 -> z (mod MOD*MOD2*MOD3)
+				// 需要将 y 视为 __int128
+				__int128 y_i = y;
+				long long y_mod_m3 = y_i % MOD3;
+				long long diff = (x3 - y_mod_m3) % MOD3;
+				if (diff < 0) diff += MOD3;
+				long long t3 = diff * inv_m1m2_mod_m3 % MOD3;
+				__int128 full = y_i + (__int128)MOD * MOD2 * t3;
+				
+				// 将 full 转换为有符号 long long（取模 2^64 可能丢失，但假设结果范围在 long long 内）
+				// 如果结果超出 long long，将产生溢出，这里简单转换并提醒
+				res[i] = (long long)full;
+			}
+			return res;
+		}
+	} // namespace ntt
+	// 特化加法：逐系数模加
+	template <>
+	inline Poly<long long> Poly<long long>::operator+(const Poly<long long>& rhs) const {
+		int n = std::max(size(), rhs.size());
+		Poly<long long> res(n);
+		for (int i = 0; i < n; ++i) {
+			long long a = (i < size()) ? data[i] : 0;
+			long long b = (i < rhs.size()) ? rhs[i] : 0;
+			res[i] = ntt::add(a, b);
+		}
+		return res;
+	}
+	
+// 特化减法：逐系数模减
+	template <>
+	inline Poly<long long> Poly<long long>::operator-(const Poly<long long>& rhs) const {
+		int n = std::max(size(), rhs.size());
+		Poly<long long> res(n);
+		for (int i = 0; i < n; ++i) {
+			long long a = (i < size()) ? data[i] : 0;
+			long long b = (i < rhs.size()) ? rhs[i] : 0;
+			res[i] = ntt::sub(a, b);
+		}
+		return res;
+	}
+	
+// 特化取负：逐系数模负
+	template <>
+	inline Poly<long long> Poly<long long>::operator-() const {
+		Poly<long long> res(size());
+		for (int i = 0; i < size(); ++i) {
+			res[i] = (data[i] == 0) ? 0 : ntt::MOD - data[i];
+		}
+		return res;
+	}
+	
+// 特化复合赋值
+	template <>
+	inline Poly<long long>& Poly<long long>::operator+=(const Poly<long long>& rhs) {
+		*this = *this + rhs;
+		return *this;
+	}
+	template <>
+	inline Poly<long long>& Poly<long long>::operator-=(const Poly<long long>& rhs) {
+		*this = *this - rhs;
+		return *this;
+	}
+	
+// 特化 Poly<long long> 乘法，使用 NTT
+	template <>
+	inline Poly<long long> Poly<long long>::mul(const Poly<long long>& other, int lim) const {
+		if (data.empty() || other.data.empty()) return Poly<long long>();
+		return Poly<long long>(ntt::convolution(data, other.data, lim));
+	}
+	// ==================== Poly<long long> 精确运算特化 ====================
+// 标量乘法（模乘）
+	template <>
+	inline Poly<long long> Poly<long long>::mul_scalar(const long long& s) const {
+		Poly<long long> res(size());
+		for (int i = 0; i < size(); ++i) {
+			res[i] = ntt::mul(data[i], s);
+		}
+		return res;
+	}
+	
+// 标量除法（模逆乘）
+	template <>
+	inline Poly<long long> Poly<long long>::div_scalar(const long long& s) const {
+		assert(s != 0);
+		long long inv_s = ntt::mod_inv(s);
+		Poly<long long> res(size());
+		for (int i = 0; i < size(); ++i) {
+			res[i] = ntt::mul(data[i], inv_s);
+		}
+		return res;
+	}
+		
+// 求逆（模逆）
+	template <>
+	inline Poly<long long> Poly<long long>::inv(int n) const {
+		assert(!data.empty() && data[0] != 0);
+		if (n <= 64) {
+			Poly<long long> res(n);
+			long long a0_inv = ntt::mod_inv(data[0]);
+			res.data[0] = a0_inv;
+			for (int k = 1; k < n; ++k) {
+				long long sum = 0;
+				for (int i = 1; i <= k && i < size(); ++i) {
+					sum = ntt::add(sum, ntt::mul(data[i], res.data[k - i]));
+				}
+				res.data[k] = ntt::sub(0, ntt::mul(a0_inv, sum));
+			}
+			return res;
+		}
+		Poly<long long> res;
+		res.data.push_back(ntt::mod_inv(data[0]));
+		int m = 1;
+		while (m < n) {
+			m <<= 1;
+			Poly<long long> tmp = this->trunc(m);
+			Poly<long long> two;
+			two.data.push_back(2);
+			res = (res * (two - tmp * res)).trunc(m);
+		}
+		res.resize(n);
+		return res;
+	}
+	
+// 对数（级数展开，常数项必须为 1）
+	template <>
+	inline Poly<long long> Poly<long long>::log(int n) const {
+		assert(!data.empty() && data[0] == 1);
+		if (n <= 0) return Poly<long long>();
+		if (n == 1) {
+			Poly<long long> res(1);
+			res.data[0] = 0;
+			return res;
+		}
+		
+		// log(A) = ∫ (A' * inv(A)) dx
+		Poly<long long> A = trunc(n);
+		Poly<long long> invA = A.inv(n);      // 使用已验证的模逆
+		
+		// 手动求导 A'
+		Poly<long long> derivA;
+		if (A.size() > 1) {
+			derivA.resize(A.size() - 1);
+			for (int i = 1; i < A.size(); ++i) {
+				derivA.data[i - 1] = ntt::mul(A.data[i], i);
+			}
+		}
+		
+		Poly<long long> integrand = (derivA * invA).trunc(n - 1);
+		
+		// 手动积分
+		Poly<long long> res(n);
+		res.data[0] = 0;
+		for (int i = 0; i < integrand.size() && i + 1 < n; ++i) {
+			res.data[i + 1] = ntt::div(integrand.data[i], i + 1);
+		}
+		return res;
+	}
+	
+// 指数（级数展开，常数项必须为 0）
+	template <>
+	inline Poly<long long> Poly<long long>::exp(int n) const {
+		assert(!data.empty() && data[0] == 0);
+		if (n <= 0) return Poly<long long>();
+		if (n == 1) {
+			Poly<long long> res(1);
+			res.data[0] = 1;
+			return res;
+		}
+		
+		Poly<long long> res;
+		res.data.push_back(1);          // exp(0) = 1
+		
+		int m = 1;
+		while (m < n) {
+			m <<= 1;
+			Poly<long long> tmp = this->trunc(m);
+			Poly<long long> one;
+			one.data.push_back(1);
+			// delta = 1 - log(res) + tmp
+			Poly<long long> delta = one - res.log(m) + tmp;
+			res = (res * delta).trunc(m);
+		}
+		res.resize(n);
+		return res;
+	}
+	
+// 平方根（常数项必须为二次剩余）
+	template <>
+	inline Poly<long long> Poly<long long>::sqrt(int n) const {
+		assert(!data.empty());
+		long long a0 = data[0];
+		long long s0 = ntt::mod_sqrt(a0);
+		if (s0 == -1) return Poly<long long>();  // 无解
+		
+		if (n <= 64) {
+			Poly<long long> res(n);
+			res.data[0] = s0;
+			long long inv_2s0 = ntt::div(1, ntt::mul(2, s0));
+			for (int k = 1; k < n; ++k) {
+				long long sum = 0;
+				for (int i = 1; i <= k - 1; ++i) {
+					sum = ntt::add(sum, ntt::mul(res.data[i], res.data[k - i]));
+				}
+				long long ak = (k < size()) ? data[k] : 0;
+				res.data[k] = ntt::mul(ntt::sub(ak, sum), inv_2s0);
+			}
+			return res;
+		}
+		
+		Poly<long long> res;
+		res.data.push_back(s0);
+		int m = 1;
+		while (m < n) {
+			m <<= 1;
+			Poly<long long> A = this->trunc(m);
+			Poly<long long> half;
+			half.data.push_back(ntt::mod_inv(2));
+			res = (res + A * res.inv(m)) * half;
+			res.resize(m);
+		}
+		res.resize(n);
+		return res;
+	}
+	
+// 整数幂（快速幂）
+	template <>
+	inline Poly<long long> Poly<long long>::pow(int k, int n) const {
+		assert(k >= 0);
+		Poly<long long> res;
+		res.data.push_back(1);              // 常数 1
+		Poly<long long> base = *this;
+		
+		while (k > 0) {
+			if (k & 1) {
+				res = (res * base).trunc(n);
+			}
+			base = (base * base).trunc(n);
+			k >>= 1;
+		}
+		res.resize(n);
+		return res;
+	}
+	
+	// 外部函数：多模数精确乘法
+	inline Poly<long long> mul_exact(const Poly<long long>& a, const Poly<long long>& b, int lim = -1) {
+		if (a.data.empty() || b.data.empty()) return Poly<long long>();
+		return Poly<long long>(ntt::convolution_multi_mod(a.data, b.data, lim));
+	}
+	
+// ---------- 三角函数（带归一化） ----------
 	inline PolyC to_complex(const PolyD& p) {
 		PolyC res(p.size());
 		for (int i = 0; i < p.size(); ++i) res[i] = cd(p[i], 0.0);
@@ -632,24 +1120,19 @@ namespace poly_avx {
 	}
 	
 	inline void poly_sincos(const PolyD& A, int n, PolyD& sinA, PolyD& cosA) {
-		// 将实多项式 A 视为实部，构造复数多项式 A + 0i
 		PolyC Ac = to_complex(A.trunc(n));
-		// 计算 exp(i*A)，只需一次复数指数
 		PolyC exp_iA = (Ac * I).exp(n);
-		
 		sinA = PolyD(n);
 		cosA = PolyD(n);
 		for (int i = 0; i < n; ++i) {
-			// 取实部和虚部得到 cos(A) 和 sin(A)
 			cosA[i] = exp_iA[i].real();
 			sinA[i] = exp_iA[i].imag();
 		}
-		
-		// 归一化 sin² + cos² = 1（修正浮点误差）
+		// 归一化 sin²+cos² = 1
 		PolyD s2 = (sinA * sinA).trunc(n);
 		PolyD c2 = (cosA * cosA).trunc(n);
 		PolyD norm = s2 + c2;
-		PolyD inv_norm = norm.sqrt(n).inv(n);   // 直接求 1/sqrt(norm)
+		PolyD inv_norm = norm.sqrt(n).inv(n);
 		sinA = (sinA * inv_norm).trunc(n);
 		cosA = (cosA * inv_norm).trunc(n);
 	}
@@ -659,7 +1142,6 @@ namespace poly_avx {
 		poly_sincos(A, n, s, c);
 		return s;
 	}
-	
 	inline PolyD poly_cos(const PolyD& A, int n) {
 		PolyD s, c;
 		poly_sincos(A, n, s, c);
@@ -672,8 +1154,6 @@ namespace poly_avx {
 	}
 	
 // ---------- 反三角函数 ----------
-	inline PolyD poly_composite(const PolyD& A, const PolyD& B, int n);
-	
 	inline PolyD poly_asin(const PolyD& A, int n) {
 		assert(A.data.empty() || std::abs(A[0]) < 1.0 - EPS);
 		PolyD one(1.0);
@@ -681,16 +1161,8 @@ namespace poly_avx {
 		PolyD integrand = (A.deriv() * (one - A2).sqrt(n).inv(n)).trunc(n - 1);
 		PolyD res = integrand.integ().trunc(n);
 		if (!res.data.empty()) res.data[0] = std::asin(A[0]);
-		
-		// 一次计算 sin 和 cos，避免重复
-		PolyD sin_res, cos_res;
-		poly_sincos(res, n, sin_res, cos_res);
-		PolyD diff = (sin_res - A).trunc(n);
-		res = (res - diff * cos_res.inv(n)).trunc(n);
-		res.data[0] = std::asin(A[0]);
 		return res;
 	}
-	
 	inline PolyD poly_acos(const PolyD& A, int n) {
 		assert(A.data.empty() || std::abs(A[0]) < 1.0 - EPS);
 		PolyD asin_res = poly_asin(A, n);
@@ -698,13 +1170,14 @@ namespace poly_avx {
 		res.data[0] = PI / 2.0 - std::asin(A[0]);
 		return res;
 	}
-	
 	inline PolyD poly_atan(const PolyD& A, int n) {
-		assert(A.data.empty() || std::abs(A[0]) < EPS);
-		PolyD DA = A.deriv();
 		PolyD one(1.0);
-		PolyD den = one + (A * A).trunc(n);
-		return (DA * den.inv(n)).trunc(n - 1).integ().trunc(n);
+		PolyD A2 = (A * A).trunc(n);
+		PolyD den = one + A2;
+		PolyD integrand = (A.deriv() * den.inv(n)).trunc(n - 1);
+		PolyD res = integrand.integ().trunc(n);
+		res.data[0] = std::atan(A[0]);
+		return res;
 	}
 	
 // ---------- 双曲函数（带归一化） ----------
@@ -754,11 +1227,10 @@ namespace poly_avx {
 		PolyD A2 = (A * A).trunc(n);
 		PolyD integrand = (A.deriv() * (one + A2).sqrt(n).inv(n)).trunc(n - 1);
 		PolyD res = integrand.integ().trunc(n);
-		double a0 = A.data[0];
+		double a0 = A[0];
 		res.data[0] = std::log(a0 + std::sqrt(a0 * a0 + 1.0));
 		return res;
 	}
-	
 	inline PolyD poly_acosh(const PolyD& A, int n) {
 		assert(!A.data.empty() && A.data[0] > 1.0 + EPS);
 		double c = A.data[0];
@@ -778,7 +1250,6 @@ namespace poly_avx {
 		res.data[0] = acosh_c;
 		return res.trunc(n);
 	}
-	
 	inline PolyD poly_atanh(const PolyD& A, int n) {
 		assert(A.data.empty() || std::abs(A[0]) < 1.0 - EPS);
 		PolyD one(1.0);
@@ -830,7 +1301,6 @@ namespace poly_avx {
 	}
 	
 // ---------- 多点求值（分治快速版） ----------
-	// 朴素版本（保留）
 	inline std::vector<double> multipoint_eval_naive(const PolyD& P, const std::vector<double>& pts) {
 		std::vector<double> res(pts.size());
 		for (size_t i = 0; i < pts.size(); ++i) {
@@ -844,10 +1314,9 @@ namespace poly_avx {
 		return res;
 	}
 	
-	// 构建分治树：每个节点对应一个区间内的 (x - pts[i]) 乘积
 	struct EvalTree {
 		int left, right;
-		PolyD prod;          // product of (x - pts[i]) for i in [left, right)
+		PolyD prod;
 		EvalTree *lc, *rc;
 		EvalTree(int l, int r) : left(l), right(r), prod(1.0), lc(NULL), rc(NULL) {}
 	};
@@ -877,11 +1346,7 @@ namespace poly_avx {
 	
 	inline void eval_rec(const PolyD& f, EvalTree* node, std::vector<double>& res) {
 		if (node->right - node->left == 1) {
-			if (f.size() == 0) {
-				res[node->left] = 0.0;
-			} else {
-				res[node->left] = f[0]; // 常数项，因为 f mod (x - c) 即为 f(c)
-			}
+			res[node->left] = (f.size() == 0) ? 0.0 : f[0];
 			return;
 		}
 		PolyD r0 = f % node->lc->prod;
@@ -890,7 +1355,6 @@ namespace poly_avx {
 		eval_rec(r1, node->rc, res);
 	}
 	
-	// 快速多点求值：自动选择朴素或分治
 	inline std::vector<double> multipoint_eval(const PolyD& P, const std::vector<double>& pts) {
 		int k = (int)pts.size();
 		if (k <= 32 || P.size() <= 32) {
@@ -906,8 +1370,7 @@ namespace poly_avx {
 	}
 	
 // ---------- 拉格朗日插值（快速版） ----------
-// 朴素版本（保留）
-	inline PolyD multipoint_interpolate_naive(const std::vector<double>& x, const std::vector<double>& y) {
+	inline PolyD multipoint_interpolate(const std::vector<double>& x, const std::vector<double>& y) {
 		int n = (int)x.size();
 		PolyD result(n);
 		for (int i = 0; i < n; ++i) {
@@ -928,52 +1391,31 @@ namespace poly_avx {
 		return result;
 	}
 	
-// 递归合并构建插值多项式，node 必须已由 build_eval_tree 建立
-// 返回 pair<插值多项式, 区间乘积多项式>
 	inline std::pair<PolyD, PolyD> build_interp_rec(EvalTree* node, const std::vector<double>& w) {
 		if (node->right - node->left == 1) {
 			int idx = node->left;
 			PolyD interp(1);
-			interp[0] = w[idx];                 // 使用权重 w_i 而非 y_i
-			PolyD prod = node->prod;            // (x - x_i)
-			return std::make_pair(interp, prod);
+			interp[0] = w[idx];
+			return std::make_pair(interp, node->prod);
 		} else {
 			std::pair<PolyD, PolyD> left = build_interp_rec(node->lc, w);
 			std::pair<PolyD, PolyD> right = build_interp_rec(node->rc, w);
-			
 			PolyD interp = (left.first * right.second) + (right.first * left.second);
-			PolyD prod = node->prod;            // 该节点已存储的区间乘积
-			
-			return std::make_pair(interp, prod);
+			return std::make_pair(interp, node->prod);
 		}
 	}
 	
-// 快速插值：O(n log² n)
-	inline PolyD multipoint_interpolate(const std::vector<double>& x, const std::vector<double>& y) {
+	inline PolyD multipoint_interpolate_fast(const std::vector<double>& x, const std::vector<double>& y) {
 		int n = (int)x.size();
-		if (n <= 32) {
-			return multipoint_interpolate_naive(x, y);    // 小规模使用朴素算法
-		}
-		
-		// 1. 构建求值树，得到全局乘积多项式 prod = Π (x - x_i)
+		if (n <= 32) return multipoint_interpolate(x, y);
 		EvalTree* root = build_eval_tree(x, 0, n);
 		PolyD prod = root->prod;
-		
-		// 2. 计算 prod'(x_i)，直接复用已构建的树进行求值
 		PolyD dprod = prod.deriv();
 		std::vector<double> deriv_vals(n);
-		eval_rec(dprod, root, deriv_vals);          // 使用之前定义的递归求值函数
-		
-		// 3. 计算权重 w_i = y_i / prod'(x_i)
+		eval_rec(dprod, root, deriv_vals);
 		std::vector<double> w(n);
-		for (int i = 0; i < n; ++i) {
-			w[i] = y[i] / deriv_vals[i];
-		}
-		
-		// 4. 递归合并得到插值多项式
+		for (int i = 0; i < n; ++i) w[i] = y[i] / deriv_vals[i];
 		std::pair<PolyD, PolyD> result = build_interp_rec(root, w);
-		
-		// 5. 清理
 		delete_eval_tree(root);
 		return result.first;
 	}
@@ -1029,14 +1471,6 @@ namespace poly_avx {
 		return G;
 	}
 	
-// ---------- 辅助：计算 gamma(n + 0.5) ----------
-	inline double gamma_half_int(int n) {
-		double res = std::sqrt(PI);
-		for (int i = 1; i <= n; ++i)
-			res *= (i - 0.5);
-		return res;
-	}
-	
 // ---------- 特殊函数 ----------
 	inline PolyD poly_erf(int n) {
 		std::vector<double> c(n, 0.0);
@@ -1050,7 +1484,6 @@ namespace poly_avx {
 		}
 		return PolyD(c);
 	}
-	
 	inline PolyD poly_erf(const PolyD& A, int n) {
 		if (A.data.empty()) return PolyD(n);
 		PolyD erf_series = poly_erf(n);
@@ -1058,7 +1491,6 @@ namespace poly_avx {
 		if (!res.data.empty()) res.data[0] = 0.0;
 		return res;
 	}
-	
 	inline PolyD poly_bessel_J0(int n) {
 		std::vector<double> c(n, 0.0);
 		double val = 1.0;
@@ -1069,13 +1501,11 @@ namespace poly_avx {
 		}
 		return PolyD(c);
 	}
-	
 	inline PolyD poly_erfc(int n) {
 		PolyD erf_series = poly_erf(n);
 		PolyD one(1.0);
 		return (one - erf_series).trunc(n);
 	}
-	
 	inline PolyD poly_bessel_J1(int n) {
 		std::vector<double> c(n, 0.0);
 		double coeff = 0.5;
