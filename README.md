@@ -55,7 +55,17 @@ A Chinese version of this document is available at [README_CN.md](README_CN.md).
 - `poly_erfc(n)` – complementary error function
 - `poly_bessel_J0(n)` – Bessel J₀ series
 - `poly_bessel_J1(n)` – Bessel J₁ series
+- 
+### Exact Integer Polynomials (NTT)
 
+- `PolyI` – polynomial with `long long` coefficients using Number Theoretic Transform (NTT)
+  for **exact, deterministic multiplication** modulo a prime (`998244353`).
+- Supports `mul`, `inv`, `log`, `exp`, `sqrt`, `pow` with no floating-point error.
+- Additional `mul_exact` function uses **multi-modular CRT** with three NTT primes
+  (product ≈ 4.7×10²⁶) for exact multiplication when coefficients may exceed a single modulus.
+- Ideal for blockchain Proof-of-Useful-Work (PoUW) and any application requiring
+  reproducible results.
+  
 ### I/O
 - `operator<<` and `operator>>` for easy stream input/output of coefficients.
 
@@ -83,6 +93,20 @@ Typical test results for the polynomial `A = 2 + 3x + x²` (truncated to 8 terms
 \* **Note:** The error of `J1(0.5)` is closely related to the truncation order `n` used in `poly_bessel_J1(n)`.  
 For `n=8`, the error is approximately `1.3218556804695e-09`; for `n=12`, it drops to approximately `6.75015598972095e-14`.  
 Increase `n` for higher accuracy if needed.
+
+### Integer Polynomial (PolyI) Accuracy
+
+All computations are performed modulo `998244353` (single modulus).  
+Maximum coefficient errors (truncated to 8 terms):
+
+| Identity | Error |
+|---|---|
+| `(IA * IB) - NTT convolution` | **0** |
+| `IA * IA.inv - 1` | **0** |
+| `exp(log(IA)) - IA` | **0** |
+| `sqrt(IA)^2 - IA` | **0** |
+| `(1+x)^3 - manual` | **0** |
+| `mul_exact(A, B) - manual` | **0** |
 
 ## Performance Comparison
 
@@ -130,6 +154,15 @@ Measured with polynomial truncation length `n=8`, 10000 repetitions per function
 | `log1p` | 1.4894 | 0.3479 |
 
 **Note:** Windows tests used MinGW-w64 GCC 16; Linux tests used WSL2 with GCC 16. Both compiled with `-O3 -march=native -mfma`.
+
+### PolyI Performance (NTT)
+
+Measured on the Windows (`-O3 -march=native -mfma`, `n` refers to polynomial size):
+
+| Operation | Time per call |
+|---|---|
+| Multiplication, N=256 | 54.1 µs |
+| Inverse, N=64 | 1.4 µs |
 
 ## Requirements
 
