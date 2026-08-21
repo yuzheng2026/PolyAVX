@@ -86,52 +86,49 @@ Increase `n` for higher accuracy if needed.
 
 ## Performance
 
-Measured on Windows with MinGW-w64 GCC, `-O3 -march=native -mfma`, and polynomial truncation length `n=8`  
-(10000 repetitions, time per call):
+Measured on **Windows** with **MinGW-w64 GCC**, `-O3 -march=native -mfma`, polynomial truncation length `n=8`  
+(10000 repetitions, time per call, using high-resolution timer):
 
 | Function | Time per call (µs) |
 |----------|--------------------|
-| `A + B` | < 0.1 |
-| `A - B` | < 0.1 |
-| `A * B` | < 0.1 |
-| `A / B` | < 0.1 |
-| `A % B` | 1.4 |
-| `A * 2.5` | < 0.1 |
-| `B / 2.0` | < 0.1 |
-| `deriv` | 0.3 |
-| `integ` | 0.1 |
-| `inv` | 0.1 |
-| `log` | 0.7 |
-| `exp` | 3.5 |
-| `sqrt` | < 0.1 |
-| `pow(int)` | 2.0 |
-| `pow(real)` | 4.4 |
-| `sin` | 6.1 |
-| `cos` | 6.1 |
-| `tan` | 6.1 |
-| `asin` | 7.7 |
-| `acos` | 7.0 |
-| `atan` | 1.4 |
-| `sinh` | 9.5 |
-| `cosh` | 9.4 |
-| `tanh` | 9.5 |
-| `asinh` | 2.0 |
-| `acosh` | 1.9 |
-| `atanh` | 0.9 |
-| `shift` | 0.5 |
-| `composite` | 1.9 |
-| `reversion` | 8.1 |
-| `erf` | 2.7 |
-| `besselJ0` | 0.2 |
-| `besselJ1` | 0.1 |
-| `interpol` | 2.8 |
-| `eval` | < 0.1 |
-| `erf_series` | < 0.1 |
-| `erfc` | 1.0 |
-| `log1p` | 0.5 |
-
-Values marked `< 0.1` are extremely fast (below the measurement resolution of this benchmark).  
-Performance is heavily optimized for small polynomial sizes (`n ≤ 64`) using naive convolution and recurrence relations, avoiding FFT and Newton iteration overhead when not needed.
+| `A + B` | 0.059 |
+| `A - B` | 0.051 |
+| `A * B` | 0.158 |
+| `A / B` | 1.155 |
+| `A % B` | 0.767 |
+| `A * 2.5` | 0.050 |
+| `B / 2.0` | 0.088 |
+| `deriv` | 0.194 |
+| `integ` | 0.080 |
+| `inv` | 0.069 |
+| `log` | 1.226 |
+| `exp` | 4.271 |
+| `sqrt` | 0.146 |
+| `pow(int)` | 1.347 |
+| `pow(real)` | 4.358 |
+| `sin` | 5.708 |
+| `cos` | 5.324 |
+| `tan` | 5.969 |
+| `asin` | 7.411 |
+| `acos` | 7.324 |
+| `atan` | 0.899 |
+| `sinh` | 8.883 |
+| `cosh` | 9.022 |
+| `tanh` | 9.599 |
+| `asinh` | 1.010 |
+| `acosh` | 2.755 |
+| `atanh` | 1.322 |
+| `shift` | 0.481 |
+| `composite` | 2.408 |
+| `reversion` | 9.078 |
+| `erf` | 4.007 |
+| `besselJ0` | 0.149 |
+| `besselJ1` | 0.152 |
+| `interpol` | 2.949 |
+| `eval` | 0.353 |
+| `erf_series` | 0.161 |
+| `erfc` | 0.493 |
+| `log1p` | 1.489 |
 
 ## Requirements
 
