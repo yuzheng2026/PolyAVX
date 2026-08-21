@@ -86,45 +86,45 @@ Increase `n` for higher accuracy if needed.
 
 ## Performance
 
-Measured on a typical x86‑64 system with GCC, `-O3 -march=native -mfma`, and polynomial truncation length `n=8`  
+Measured on Windows with MinGW-w64 GCC, `-O3 -march=native -mfma`, and polynomial truncation length `n=8`  
 (10000 repetitions, time per call):
 
 | Function | Time per call (µs) |
 |----------|--------------------|
-| `A + B` | < 0.1 |
+| `A + B` | 0.1 |
 | `A - B` | < 0.1 |
 | `A * B` | < 0.1 |
-| `A / B` | 2.2 |
-| `A % B` | 0.9 |
+| `A / B` | < 0.1 |
+| `A % B` | 1.4 |
 | `A * 2.5` | < 0.1 |
 | `B / 2.0` | < 0.1 |
-| `deriv` | < 0.1 |
-| `integ` | < 0.1 |
-| `inv` | < 0.1 |
-| `log` | 1.6 |
-| `exp` | 5.2 |
+| `deriv` | 0.3 |
+| `integ` | 0.1 |
+| `inv` | 0.1 |
+| `log` | 0.7 |
+| `exp` | 3.5 |
 | `sqrt` | < 0.1 |
-| `pow(int)` | 1.2 |
-| `pow(real)` | 5.3 |
-| `sin` | 5.8 |
-| `cos` | 4.8 |
-| `tan` | 6.4 |
-| `asin` | 8.0 |
-| `acos` | 7.3 |
-| `atan` | 0.4 |
-| `sinh` | 9.6 |
-| `cosh` | 7.9 |
+| `pow(int)` | 2.0 |
+| `pow(real)` | 4.4 |
+| `sin` | 6.1 |
+| `cos` | 6.1 |
+| `tan` | 6.1 |
+| `asin` | 7.7 |
+| `acos` | 7.0 |
+| `atan` | 1.4 |
+| `sinh` | 9.5 |
+| `cosh` | 9.4 |
 | `tanh` | 9.5 |
-| `asinh` | < 0.1 |
-| `acosh` | 1.6 |
-| `atanh` | < 0.1 |
-| `shift` | < 0.1 |
-| `composite` | 1.6 |
-| `reversion` | 8.6 |
-| `erf` | 2.6 |
-| `besselJ0` | < 0.1 |
-| `besselJ1` | < 0.1 |
-| `interpol` | 3.0 |
+| `asinh` | 2.0 |
+| `acosh` | 1.9 |
+| `atanh` | 0.9 |
+| `shift` | 0.5 |
+| `composite` | 1.9 |
+| `reversion` | 8.1 |
+| `erf` | 2.7 |
+| `besselJ0` | 0.2 |
+| `besselJ1` | 0.1 |
+| `interpol` | 2.8 |
 | `eval` | < 0.1 |
 | `erf_series` | < 0.1 |
 | `erfc` | 1.0 |
