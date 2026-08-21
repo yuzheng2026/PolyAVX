@@ -7,14 +7,12 @@
 [![Last commit](https://img.shields.io/github/last-commit/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX/commits/main)
 [![Top language](https://img.shields.io/github/languages/top/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
 [![Repo size](https://img.shields.io/github/repo-size/yuzheng2026/PolyAVX)](https://github.com/yuzheng2026/PolyAVX)
-[![CI](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzheng2026/PolyAVX/actions/workflows/ci.yml)
-**Note:** PolyAVX is a collection of polynomial utilities and optimized with SIMD (SSE3/AVX/AVX-512).
 
-**Related project**: [PolyChain](https://github.com/yuzheng2026/PolyChain)
+**Related project**: [PolyChain Blockchain Simulator](https://github.com/yuzheng2026/QtWidgetsApplication1)
 
 A high‑speed polynomial / formal power series library for **x86‑64** with **SSE3 / AVX / AVX‑512** and **FMA3** acceleration.  
 All operations use FFT‑based convolution and are optimised for **double** precision.  
-The core logic is header‑only (`poly_avx.hpp`), with an optional runtime CPU dispatcher (`cpu_dispatch.cpp`) for automatic SIMD selection.  
+The library is now **single‑header only** (`poly_avx.hpp`) with built‑in runtime CPU dispatch. No extra `.cpp` files are required.  
 A Chinese version of this document is available at [README_CN.md](README_CN.md).
 
 ## Features
@@ -48,92 +46,93 @@ A Chinese version of this document is available at [README_CN.md](README_CN.md).
 ### Extended operations
 - `poly_shift(A, c, n)` – Taylor shift (`A(x+c)`)
 - `multipoint_eval_naive(P, pts)` – evaluate polynomial at multiple points (O(n²))
+- `multipoint_eval(P, pts)` – fast multipoint evaluation using a divide‑and‑conquer tree
 - `multipoint_interpolate(x, y)` – Lagrange interpolation (O(n²))
+- `multipoint_interpolate_fast(x, y)` – fast interpolation (O(n log² n))
 - `poly_composite(A, B, n)` – composition `A(B(x))` (Brent‑Kung algorithm)
 - `poly_reversion(F, n)` – reversion / compositional inverse (Newton iteration)
 - `poly_erf(n)` / `poly_erf(A, n)` – error function (series / composition)
+- `poly_erfc(n)` – complementary error function
 - `poly_bessel_J0(n)` – Bessel J₀ series
+- `poly_bessel_J1(n)` – Bessel J₁ series
 
 ### I/O
 - `operator<<` and `operator>>` for easy stream input/output of coefficients.
 
 ## Accuracy
 
-All tests pass on **GCC 11+** and any **C++98 conformant compiler** (including older GCC 3.4+, Clang, MSVC 2005+).  
-Typical infinity‑norm errors for the test polynomial `A = 2 + 3x + x²` (truncated to 8 terms):
+All identity errors are at or near the limits of double‑precision floating‑point arithmetic.  
+Typical test results for the polynomial `A = 2 + 3x + x²` (truncated to 8 terms):
 
 | Identity / Check | Measured Error | Ideal / Expected |
 |---|---|---|
 | `(1/A)*A - 1` | **0** | ~1e-15 |
-| `sqrt(A)^2 - A` | 4.44089209850063e-16 | ~1e-15 |
+| `sqrt(A)² - A` | 4.44089209850063e-16 | ~1e-15 |
 | `exp(log(A)) - A` | 1.4658413372004e-16 | ~1e-15 |
 | `sin² + cos² - 1` | **0** | ~1e-14 |
 | `cosh² - sinh² - 1` | 1.4210854715202e-14 | ~1e-14 |
 | `sin(asin(A0)) - A0` | 2.60902410786912e-15 | ~1e-12 |
 | `sinh(asinh(A0)) - A0` | 3.37507799486048e-14 | ~1e-13 |
 | `tanh(atanh(A0)) - A0` | 1.13686837721616e-13 | ~1e-13 |
-| `J1(0.5) - reference` | 6.75015598972095e-14* | ~1e-15* |
+| `J1(0.5) - reference` | 6.75015598972095e-14 * | ~1e-15 * |
 | Interpolation max error | **0** | <1e-15 |
 | Composite error (A(B(x)) with B=x) | **0** | 0 |
 | Reversion of x | expected 0 1 0 0 0 | passed |
 | `erf(0)` | **0** | near 0 |
 
-**Note:** The error of J1(0.5) is closely related to the truncation order n used in poly_bessel_J1(n).
-For n=8, the error is approximately 1.3218556804695e-09; for n=12, it drops to approximately 6.75015598972095e-14.
-Increase n for higher accuracy if needed.
-
-All identity errors are at or near the limits of double-precision floating-point arithmetic.
+\* **Note:** The error of `J1(0.5)` is closely related to the truncation order `n` used in `poly_bessel_J1(n)`.  
+For `n=8`, the error is approximately `1.3218556804695e-09`; for `n=12`, it drops to approximately `6.75015598972095e-14`.  
+Increase `n` for higher accuracy if needed.
 
 ## Performance
 
-Measured on a Windows system with GCC, `-O3 -march=native -mfma`, and polynomial truncation length `n=8`  
+Measured on a typical x86‑64 system with GCC, `-O3 -march=native -mfma`, and polynomial truncation length `n=8`  
 (10000 repetitions, time per call):
 
 | Function | Time per call (µs) |
 |----------|--------------------|
 | `A + B` | < 0.1 |
 | `A - B` | < 0.1 |
-| `A * B` | 0.2 |
-| `A / B` | 0.7 |
-| `A % B` | 0.8 |
+| `A * B` | < 0.1 |
+| `A / B` | 2.2 |
+| `A % B` | 0.9 |
 | `A * 2.5` | < 0.1 |
 | `B / 2.0` | < 0.1 |
-| `deriv` | 0.2 |
+| `deriv` | < 0.1 |
 | `integ` | < 0.1 |
 | `inv` | < 0.1 |
-| `log` | 0.8 |
-| `exp` | 3.3 |
+| `log` | 1.6 |
+| `exp` | 5.2 |
 | `sqrt` | < 0.1 |
-| `pow(int)` | 2.0 |
-| `pow(real)` | 2.7 |
-| `sin` | 5.5 |
-| `cos` | 5.5 |
-| `tan` | 4.7 |
-| `asin` | 7.9 |
-| `acos` | 6.9 |
-| `atan` | 1.1 |
-| `sinh` | 9.5 |
-| `cosh` | 9.4 |
-| `tanh` | 9.6 |
-| `asinh` | 0.2 |
-| `acosh` | 3.0 |
+| `pow(int)` | 1.2 |
+| `pow(real)` | 5.3 |
+| `sin` | 5.8 |
+| `cos` | 4.8 |
+| `tan` | 6.4 |
+| `asin` | 8.0 |
+| `acos` | 7.3 |
+| `atan` | 0.4 |
+| `sinh` | 9.6 |
+| `cosh` | 7.9 |
+| `tanh` | 9.5 |
+| `asinh` | < 0.1 |
+| `acosh` | 1.6 |
 | `atanh` | < 0.1 |
-| `shift` | 1.5 |
+| `shift` | < 0.1 |
 | `composite` | 1.6 |
-| `reversion` | 8.5 |
-| `erf` | 1.0 |
+| `reversion` | 8.6 |
+| `erf` | 2.6 |
 | `besselJ0` | < 0.1 |
 | `besselJ1` | < 0.1 |
-| `interpol` | 2.6 |
-| `eval` | 0.3 |
+| `interpol` | 3.0 |
+| `eval` | < 0.1 |
 | `erf_series` | < 0.1 |
-| `erfc` | < 0.1 |
-| `log1p` | < 0.1 |
+| `erfc` | 1.0 |
+| `log1p` | 0.5 |
 
 Values marked `< 0.1` are extremely fast (below the measurement resolution of this benchmark).  
 Performance is heavily optimized for small polynomial sizes (`n ≤ 64`) using naive convolution and recurrence relations, avoiding FFT and Newton iteration overhead when not needed.
 
-**Note:** My CPU supports SSE2 / SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX / AVX2 / FMA3.
 ## Requirements
 
 - **x86‑64 CPU** with at least SSE3 (virtually all modern CPUs).
@@ -142,12 +141,14 @@ Performance is heavily optimized for small polynomial sizes (`n ≤ 64`) using n
 
 ## Compilation
 
+Because PolyAVX is now a single‑header library, you only need to include `poly_avx.hpp`:
+
 ```bash
-g++ -O3 -march=native -mfma -std=c++98 your_program.cpp cpu_dispatch.cpp -o your_program
+g++ -O3 -march=native -mfma -std=c++98 your_program.cpp -o your_program
 ```
 
 If your CPU doesn’t support FMA, drop `-mfma` – the library falls back to add/sub SIMD intrinsics automatically.  
-If you prefer a **single‑file build** without runtime dispatch, simply omit `cpu_dispatch.cpp` – the library will use compile‑time macro selection instead.
+No separate `.cpp` files or precompiled headers are required.
 
 ### Precompiled header (optional)
 
@@ -173,7 +174,7 @@ PolyAVX automatically detects the SIMD capabilities of your CPU at startup and s
 **How it works:**
 - Detection uses GCC/Clang's built‑in `__builtin_cpu_supports` function, called once at startup.
 - The global function pointer `pointwise_mul` is set to `pointwise_mul_avx512`, `pointwise_mul_avx`, or `pointwise_mul_sse3` accordingly.
-- All dispatch logic lives in `cpu_dispatch.cpp` and is initialised before `main()` via a global constructor – completely transparent to users.
+- All dispatch logic is now embedded directly inside `poly_avx.hpp`, so no external files are needed.
 
 ## Quick example
 
@@ -209,16 +210,16 @@ int main() {
 
 ## Benchmark
 
-A self‑contained benchmark suite (`bench_basic.cpp`) measures the throughput of all core operations. It executes each function several thousand times and reports the total wall‑clock time, making it easy to track performance changes across commits.
+A self‑contained benchmark and accuracy test suite is provided (`PolyAVX-AVX_bench_basic.cpp`). It runs both full functional accuracy tests and performance benchmarks in one program.
 
-To build and run the benchmark:
+To build and run:
 
 ```bash
-g++ -O3 -march=native -mfma -std=c++98 bench_basic.cpp cpu_dispatch.cpp -o bench_basic
-./bench_basic
+g++ -O3 -march=native -mfma -std=c++98 PolyAVX-AVX_bench_basic.cpp -o PolyAVX-AVX_bench_basic
+./PolyAVX-AVX_bench_basic
 ```
 
-The output lists 33 operations (algebra, calculus, power series, trigonometric, hyperbolic, and extended functions) with per‑function timings. The CI pipeline automatically runs this benchmark on every push and pull request.
+The output lists 33 operations with per‑function timings and verifies key polynomial identities. The CI pipeline can automatically run this program on every push and pull request.
 
 ## Acknowledgements
 
@@ -240,6 +241,7 @@ If you plan to work on these, please open an issue first so we can discuss the b
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0 (GPLv3)** or (at your option) any later version. See the [LICENSE](LICENSE) file for the full text.
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)** or (at your option) any later version.  
+See the [LICENSE](LICENSE) file for the full text.
 
 © 2026 yuzheng2026. Licensed under GPLv3.
