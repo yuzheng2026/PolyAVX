@@ -24,6 +24,9 @@
 #ifdef __AVX__
 #include <immintrin.h>
 #endif
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 
 namespace poly_avx {
 	typedef std::complex<double> cd;
@@ -214,16 +217,38 @@ namespace poly_avx {
 	
 // 运行时调度：根据 CPU 特性选择最优实现
 	static pointwise_mul_func pointwise_mul = pointwise_mul_sse3;   // 默认 SSE3
+	static bool cpu_has_avx() {
+#if defined(__GNUC__) || defined(__clang__)
+		return __builtin_cpu_supports("avx");
+#elif defined(_MSC_VER)
+		int cpuInfo[4];
+		__cpuidex(cpuInfo, 1, 0);
+		return (cpuInfo[2] & (1 << 28)) != 0;
+#else
+		return false;
+#endif
+	}
 	
+	static bool cpu_has_avx512f() {
+#if defined(__GNUC__) || defined(__clang__)
+		return __builtin_cpu_supports("avx512f");
+#elif defined(_MSC_VER)
+		int cpuInfo[4];
+		__cpuidex(cpuInfo, 7, 0);
+		return (cpuInfo[1] & (1 << 16)) != 0;
+#else
+		return false;
+#endif
+	}
 	static void init_cpu_dispatch() {
 #ifdef __AVX512F__
-		if (__builtin_cpu_supports("avx512f")) {
+		if (cpu_has_avx512f()) {
 			pointwise_mul = pointwise_mul_avx512;
 			return;
 		}
 #endif
 #ifdef __AVX__
-		if (__builtin_cpu_supports("avx")) {
+		if (cpu_has_avx()) {
 			pointwise_mul = pointwise_mul_avx;
 			return;
 		}
