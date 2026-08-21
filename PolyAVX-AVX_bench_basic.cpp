@@ -1,11 +1,12 @@
-// PolyAVX-AVX_bench_basic.cpp — PolyAVX 精度验证 + 性能基准一体化测试
+// PolyAVX-AVX_bench_basic.cpp — PolyAVX 精度验证 + 性能基准一体化测试 (C++98)
 //
-// 本文件将全功能精度测试 (AVX.cpp) 与性能基准 (bench_basic.cpp) 合并，
-// 方便一次性评估库的正确性与运行效率。
+// 本文件将全功能精度测试与性能基准合并，使用高精度计时器测量每次调用耗时。
+// 支持 Windows (QueryPerformanceCounter) 和 Linux/macOS (clock_gettime)。
 //
-// 运行方式：
+// 编译命令（Linux）：
+//   g++ -O3 -march=native -mfma -std=c++98 PolyAVX-AVX_bench_basic.cpp -o PolyAVX-AVX_bench_basic
+// 编译命令（Windows MinGW）：
 //   g++ -O3 -march=native -mfma -std=c++98 PolyAVX-AVX_bench_basic.cpp -o PolyAVX-AVX_bench_basic.exe
-//   .\PolyAVX-AVX_bench_basic.exe
 //
 // 作者: yuzheng2026 (与 DeepSeek AI 协作开发)
 // 许可证: GNU GPLv3 or any later version
@@ -14,7 +15,12 @@
 #include <iostream>
 #include <cmath>
 #include <cfloat>
-#include <ctime>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <time.h>
+#endif
 
 using namespace poly_avx;
 
@@ -24,9 +30,64 @@ using namespace poly_avx;
 PolyD A, B, A0;
 const int N = 8;                   // 形式幂级数截断长度
 const int BENCH_REPEATS = 10000;   // 性能测试重复次数
+// 整数多项式测试数据（用于 PolyI 精确运算）
+PolyI IA, IB, IA0;          // 整数多项式，系数在模数范围内
+const int N_INT = 8;        // 截断长度
+const int MOD_INT = 998244353; // 与 ntt::MOD 一致
+
+// 初始化整数多项式
+void setup_int() {
+	IA.data.clear();
+	IA.data.push_back(1);   // 常数项为 1，便于 log
+	IA.data.push_back(2);
+	IA.data.push_back(3);   // IA = 1 + 2x + 3x²
+	
+	IB.data.clear();
+	IB.data.push_back(1);
+	IB.data.push_back(1);   // IB = 1 + x
+	
+	IA0 = IA - PolyI(IA[0]); // IA0 = 0 + 2x + 3x²，常数项为 0，便于 exp
+}
+
+// 辅助：检查两个整数多项式是否完全相等（误差应为 0）
+double coeff_max_error_int(const PolyI& a, const PolyI& b) {
+	double err = 0.0;
+	int n = a.size() > b.size() ? a.size() : b.size();
+	for (int i = 0; i < n; ++i) {
+		long long va = (i < a.size()) ? a[i] : 0;
+		long long vb = (i < b.size()) ? b[i] : 0;
+		double diff = std::abs((double)(va - vb));
+		if (diff > err) err = diff;
+	}
+	return err;
+}
+
+// 辅助：检查整数多项式是否与 [1,0,0,...] 相等
+double inf_norm_first_one_int(const PolyI& p) {
+	double err = 0.0;
+	for (int i = 0; i < p.size(); ++i) {
+		long long target = (i == 0) ? 1 : 0;
+		double diff = std::abs((double)(p[i] - target));
+		if (diff > err) err = diff;
+	}
+	return err;
+}
+// 高精度计时：返回当前时间的纳秒数
+static double now_ns() {
+#ifdef _WIN32
+	static LARGE_INTEGER freq = {0};
+	if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
+	LARGE_INTEGER counter;
+	QueryPerformanceCounter(&counter);
+	return double(counter.QuadPart) * 1e9 / double(freq.QuadPart);
+#else
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return double(ts.tv_sec) * 1e9 + double(ts.tv_nsec);
+#endif
+}
 
 // 辅助：计算多项式与首项为1其余为0的目标向量的最大绝对误差
-// 用于验证 inv(A)*A、sin²+cos² 等恒等式
 double inf_norm_first_one(const PolyD& p) {
 	double err = 0.0;
 	for (int i = 0; i < p.size(); ++i) {
@@ -50,13 +111,13 @@ double coeff_max_error(const PolyD& a, const PolyD& b) {
 	return err;
 }
 
-// 性能测试计时函数
+// 性能测试计时函数：输出每次调用的微秒数
 void bench(const char* name, void (*func)(), int repeats = BENCH_REPEATS) {
-	clock_t start = clock();
+	double start = now_ns();
 	for (int i = 0; i < repeats; ++i) func();
-	clock_t end = clock();
-	double elapsed = double(end - start) / CLOCKS_PER_SEC;
-	std::cout << name << ": " << elapsed << " sec (" << repeats << " reps)" << std::endl;
+	double end = now_ns();
+	double per_call_us = (end - start) / repeats / 1000.0; // 纳秒转微秒
+	std::cout << name << ": " << per_call_us << " us/call (" << repeats << " reps)" << std::endl;
 }
 
 // 初始化全局多项式
@@ -343,7 +404,65 @@ void run_accuracy_tests() {
 	
 	std::cout << "\n========== 精度测试完成 ==========\n\n";
 }
-
+void run_accuracy_tests_polyi() {
+	std::cout << "\n========== PolyI 精确整数多项式精度测试 ==========\n";
+	std::cout.precision(10);
+	
+	// 乘法验证：IA * IB
+	PolyI prod = (IA * IB).trunc(N_INT);
+	PolyI prod_manual = PolyI(ntt::convolution(IA.data, IB.data, N_INT));
+	double err = coeff_max_error_int(prod, prod_manual);
+	std::cout << "| (IA*IB) - NTT卷积 |_inf = " << err << "   (理想 0)\n";
+	
+	// 求逆验证：IA * IA.inv(n) == 1 (mod x^n)
+	PolyI invA = IA.inv(N_INT);
+	PolyI check_inv = (IA * invA).trunc(N_INT);
+	err = inf_norm_first_one_int(check_inv);
+	std::cout << "| IA * IA.inv - 1 |_inf = " << err << "   (理想 0)\n";
+	
+	// log验证：exp(log(IA)) == IA
+	PolyI logA = IA.log(N_INT);
+	std::cout << "log(IA) = " << logA << "\n";
+	
+	PolyI exp_logA = logA.exp(N_INT);
+	std::cout << "exp(log(IA)) = " << exp_logA << "\n";
+	std::cout << "IA = " << IA << "\n";
+	
+	err = coeff_max_error_int(exp_logA, IA);
+	std::cout << "| exp(log(IA)) - IA |_inf = " << err << "   (理想 0)\n";
+	
+	// sqrt验证：sqrt(IA)^2 == IA (需要常数项为二次剩余，1是)
+	PolyI sqrtA = IA.sqrt(N_INT);
+	if (sqrtA.size() == 0) {
+		std::cout << "sqrt(IA) 失败：常数项不是二次剩余？\n";
+	} else {
+		PolyI check_sqrt = (sqrtA * sqrtA).trunc(N_INT);
+		err = coeff_max_error_int(check_sqrt, IA);
+		std::cout << "| sqrt(IA)^2 - IA |_inf = " << err << "   (理想 0)\n";
+	}
+	
+	// pow验证：(1+x)^3
+	PolyI base;
+	base.data.push_back(1);   // 常数项 1
+	base.data.push_back(1);   // x 项系数 1
+	PolyI pow_check = IB.pow(3, N_INT);
+	PolyI pow_manual = (IB * IB * IB).trunc(N_INT);
+	err = coeff_max_error_int(pow_check, pow_manual);
+	std::cout << "| (1+x)^3 - manual |_inf = " << err << "   (理想 0)\n";
+	
+	// 多模数精确乘法测试
+	std::vector<long long> va, vb;
+	va.push_back(1000000); va.push_back(2000000); va.push_back(3000000);
+	vb.push_back(4000000); vb.push_back(5000000);
+	PolyI a(va), b(vb);
+	PolyI c = mul_exact(a, b);  // 外部函数
+	std::vector<long long> manual = ntt::convolution_multi_mod(va, vb); // 或者朴素
+// 比较 c.data 与 manual
+	double err_mul = coeff_max_error_int(c, PolyI(manual));
+	std::cout << "| mul_exact - manual |_inf = " << err_mul << "   (理想 0)\n";
+	
+	std::cout << "========== PolyI 精度测试完成 ==========\n\n";
+}
 // ==================== 性能测试函数 ====================
 
 void run_benchmarks() {
@@ -391,16 +510,67 @@ void run_benchmarks() {
 	std::cout << "\nDone.\n";
 }
 
+// 在全局区域添加对应的性能测试函数
+void bench_polyi_mul() {
+	static PolyI bigA, bigB; // 静态变量避免重复构造
+	static bool initialized = false;
+	if (!initialized) {
+		const int N_BIG = 256;
+		std::vector<long long> va(N_BIG), vb(N_BIG);
+		for (int i = 0; i < N_BIG; ++i) {
+			va[i] = (i * 37 + 11) % 1000;
+			vb[i] = (i * 91 + 23) % 1000;
+		}
+		bigA = PolyI(va);
+		bigB = PolyI(vb);
+		initialized = true;
+	}
+	PolyI r = bigA * bigB;
+	volatile long long d = r[0]; (void)d;
+}
+
+void bench_polyi_inv() {
+	static PolyI inv_input;
+	static bool initialized = false;
+	if (!initialized) {
+		inv_input.data.clear();
+		inv_input.data.push_back(1);
+		inv_input.data.push_back(2);
+		inv_input.data.push_back(3);
+		initialized = true;
+	}
+	PolyI r = inv_input.inv(64);
+	volatile long long d = r[0]; (void)d;
+}
+void run_benchmarks_polyi() {
+	std::cout << "\nPolyI (NTT) Benchmark (repeats=" << BENCH_REPEATS << ")\n";
+	
+	// 准备两个较大的整数多项式用于性能测试
+	const int N_BIG = 256;
+	std::vector<long long> va(N_BIG), vb(N_BIG);
+	for (int i = 0; i < N_BIG; ++i) {
+		va[i] = (i * 37 + 11) % 1000;
+		vb[i] = (i * 91 + 23) % 1000;
+	}
+	PolyI bigA(va), bigB(vb);
+	
+	// 乘法性能
+	bench("PolyI mul (N=256) ", bench_polyi_mul, BENCH_REPEATS);
+	// 求逆性能
+	bench("PolyI inv (N=64)  ", bench_polyi_inv, BENCH_REPEATS);
+}
+
 // ==================== 主函数 ====================
 
 int main() {
-	setup();
+	setup();          // 初始化 PolyD 数据
+	setup_int();      // 初始化 PolyI 数据
 	
-	// 先运行精度测试
-	run_accuracy_tests();
+	run_accuracy_tests();       // PolyD 精度测试
+	run_accuracy_tests_polyi(); // PolyI 精度测试
 	
-	// 再运行性能基准
-	run_benchmarks();
+	run_benchmarks();           // PolyD 性能测试
+	run_benchmarks_polyi();     // PolyI 性能测试
 	
 	return 0;
 }
