@@ -86,7 +86,7 @@ Increase `n` for higher accuracy if needed.
 
 ## Performance
 
-Measured on **Windows** with **MinGW-w64 GCC**, `-O3 -march=native -mfma`, polynomial truncation length `n=8`  
+Measured on **Windows** with **MinGW-w64 GCC 16**, `-O3 -march=native -mfma`, polynomial truncation length `n=8`  
 (10000 repetitions, time per call, using high-resolution timer):
 
 | Function | Time per call (µs) |
