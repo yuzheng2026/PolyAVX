@@ -129,7 +129,7 @@ Measured with polynomial truncation length `n=8`, 10000 repetitions per function
 | `erfc` | 0.4932 | 0.0649 |
 | `log1p` | 1.4894 | 0.3479 |
 
-**Note:** Windows tests used MinGW-w64 GCC; Linux tests used WSL2 with GCC 16. Both compiled with `-O3 -march=native -mfma`.
+**Note:** Windows tests used MinGW-w64 GCC 16; Linux tests used WSL2 with GCC 16. Both compiled with `-O3 -march=native -mfma`.
 
 ## Requirements
 
