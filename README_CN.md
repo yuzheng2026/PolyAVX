@@ -85,7 +85,7 @@
 
 ## 性能
 
-测试环境：**Windows**，**MinGW-w64 GCC**，启用 `-O3 -march=native -mfma`，多项式截断长度 `n=8`  
+测试环境：**Windows**，**MinGW-w64 GCC 16**，启用 `-O3 -march=native -mfma`，多项式截断长度 `n=8`  
 （10000 次重复，每次调用耗时，使用高精度计时器）：
 
 | 函数 | 每次调用耗时 (µs) |
