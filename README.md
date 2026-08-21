@@ -84,51 +84,52 @@ Typical test results for the polynomial `A = 2 + 3x + x²` (truncated to 8 terms
 For `n=8`, the error is approximately `1.3218556804695e-09`; for `n=12`, it drops to approximately `6.75015598972095e-14`.  
 Increase `n` for higher accuracy if needed.
 
-## Performance
+## Performance Comparison
 
-Measured on **Windows** with **MinGW-w64 GCC 16**, `-O3 -march=native -mfma`, polynomial truncation length `n=8`  
-(10000 repetitions, time per call, using high-resolution timer):
+Measured with polynomial truncation length `n=8`, 10000 repetitions per function, using a high-resolution timer.
 
-| Function | Time per call (µs) |
-|----------|--------------------|
-| `A + B` | 0.059 |
-| `A - B` | 0.051 |
-| `A * B` | 0.158 |
-| `A / B` | 1.155 |
-| `A % B` | 0.767 |
-| `A * 2.5` | 0.050 |
-| `B / 2.0` | 0.088 |
-| `deriv` | 0.194 |
-| `integ` | 0.080 |
-| `inv` | 0.069 |
-| `log` | 1.226 |
-| `exp` | 4.271 |
-| `sqrt` | 0.146 |
-| `pow(int)` | 1.347 |
-| `pow(real)` | 4.358 |
-| `sin` | 5.708 |
-| `cos` | 5.324 |
-| `tan` | 5.969 |
-| `asin` | 7.411 |
-| `acos` | 7.324 |
-| `atan` | 0.899 |
-| `sinh` | 8.883 |
-| `cosh` | 9.022 |
-| `tanh` | 9.599 |
-| `asinh` | 1.010 |
-| `acosh` | 2.755 |
-| `atanh` | 1.322 |
-| `shift` | 0.481 |
-| `composite` | 2.408 |
-| `reversion` | 9.078 |
-| `erf` | 4.007 |
-| `besselJ0` | 0.149 |
-| `besselJ1` | 0.152 |
-| `interpol` | 2.949 |
-| `eval` | 0.353 |
-| `erf_series` | 0.161 |
-| `erfc` | 0.493 |
-| `log1p` | 1.489 |
+| Function | Windows (µs) | Linux (µs) |
+|----------|--------------|------------|
+| `A + B` | 0.0586 | 0.0433 |
+| `A - B` | 0.0512 | 0.0250 |
+| `A * B` | 0.1578 | 0.1008 |
+| `A / B` | 1.1545 | 0.3386 |
+| `A % B` | 0.7670 | 0.2315 |
+| `A * 2.5` | 0.0501 | 0.0175 |
+| `B / 2.0` | 0.0883 | 0.0144 |
+| `deriv` | 0.1938 | 0.0303 |
+| `integ` | 0.0803 | 0.0197 |
+| `inv` | 0.0687 | 0.0337 |
+| `log` | 1.2261 | 0.2234 |
+| `exp` | 4.2709 | 1.0235 |
+| `sqrt` | 0.1456 | 0.0937 |
+| `pow(int)` | 1.3473 | 0.3234 |
+| `pow(real)` | 4.3581 | 1.5595 |
+| `sin` | 5.7077 | 2.0748 |
+| `cos` | 5.3239 | 2.1636 |
+| `tan` | 5.9694 | 2.2069 |
+| `asin` | 7.4112 | 2.9752 |
+| `acos` | 7.3243 | 3.0669 |
+| `atan` | 0.8993 | 0.2701 |
+| `sinh` | 8.8827 | 3.3482 |
+| `cosh` | 9.0218 | 3.3697 |
+| `tanh` | 9.5994 | 3.5150 |
+| `asinh` | 1.0098 | 0.3418 |
+| `acosh` | 2.7549 | 0.6498 |
+| `atanh` | 1.3221 | 0.2762 |
+| `shift` | 0.4815 | 0.1312 |
+| `composite` | 2.4084 | 0.5751 |
+| `reversion` | 9.0778 | 2.5248 |
+| `erf` | 4.0070 | 0.7083 |
+| `besselJ0` | 0.1487 | 0.0319 |
+| `besselJ1` | 0.1521 | 0.0306 |
+| `interpol` | 2.9489 | 0.5897 |
+| `eval` | 0.3531 | 0.0968 |
+| `erf_series` | 0.1606 | 0.0257 |
+| `erfc` | 0.4932 | 0.0649 |
+| `log1p` | 1.4894 | 0.3479 |
+
+**Note:** Windows tests used MinGW-w64 GCC; Linux tests used WSL2 with GCC 16. Both compiled with `-O3 -march=native -mfma`.
 
 ## Requirements
 
